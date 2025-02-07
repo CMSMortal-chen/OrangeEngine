@@ -2,17 +2,23 @@ package cms.mortalchen.orange.widget;
 
 import cms.mortalchen.orange.OrangeEngine;
 import cms.mortalchen.orange.utils.InputUtils;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
 import org.joml.Vector2f;
 import org.joml.Vector4f;
 
-@RequiredArgsConstructor
 public abstract class Widget {
-    @NonNull
     public Vector4f renderPos;
+    public float width, height;
 
-    public abstract void onRender(long nvg);
+    public Widget(Vector4f renderPos) {
+        this.renderPos = renderPos;
+        width = Math.max(renderPos.x, renderPos.z) - Math.min(renderPos.x, renderPos.z);
+        height = Math.max(renderPos.y, renderPos.w) - Math.min(renderPos.y, renderPos.w);
+    }
+
+    public void onRender(long nvg) {
+        width = Math.max(renderPos.x, renderPos.z) - Math.min(renderPos.x, renderPos.z);
+        height = Math.max(renderPos.y, renderPos.w) - Math.min(renderPos.y, renderPos.w);
+    }
 
     public abstract void onTrigger();
 
