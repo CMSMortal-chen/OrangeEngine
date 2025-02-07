@@ -4,23 +4,13 @@ import cms.mortalchen.orange.utils.Utils;
 import lombok.experimental.UtilityClass;
 import org.joml.Vector2f;
 import org.lwjgl.nanovg.NVGColor;
+import org.lwjgl.nanovg.NVGPaint;
 import org.lwjgl.nanovg.NanoVG;
 
 import java.awt.*;
 
 @UtilityClass
 public class RenderUtils {
-
-    private static final NVGColor PAUSE_MENU_COLOR;
-
-    static {
-        PAUSE_MENU_COLOR = NVGColor.create();
-        PAUSE_MENU_COLOR.r(0.12f);
-        PAUSE_MENU_COLOR.g(0.12f);
-        PAUSE_MENU_COLOR.b(0.12f);
-        PAUSE_MENU_COLOR.a(0.86f);
-    }
-
     public void renderPauseMenu(long vg, float screenWidth, float screenHeight) {
         NVGColor color = NVGColor.create();
         color.r(0.18f);
@@ -122,6 +112,50 @@ public class RenderUtils {
         NanoVG.nvgRect(vg, x, y, (Math.max(x, x2) - Math.min(x, x2)), (Math.max(y, y2) - Math.min(y, y2)));
         NanoVG.nvgFillColor(vg, nvgColor);
         NanoVG.nvgFill(vg);
+    }
+
+    public void drawGradientSideWay(long vg, float x, float y, float x2, float y2, Color color,Color colorTo) {
+        // 创建颜色对象并设置
+        NVGColor nvgColor = NVGColor.create()
+                .r(color.getRed() / 255f)
+                .g(color.getGreen() / 255f)
+                .b(color.getBlue() / 255f)
+                .a(color.getAlpha() / 255f);
+        NVGColor nvgColorTo = NVGColor.create()
+                .r(colorTo.getRed() / 255f)
+                .g(colorTo.getGreen() / 255f)
+                .b(colorTo.getBlue() / 255f)
+                .a(colorTo.getAlpha() / 255f);
+
+        NanoVG.nvgBeginPath(vg);
+        NanoVG.nvgRect(vg, x, y, (Math.max(x, x2) - Math.min(x, x2)), (Math.max(y, y2) - Math.min(y, y2)));
+        try (NVGPaint paint = NVGPaint.create()) {
+            NanoVG.nvgLinearGradient(vg, x, y, x2, y, nvgColor, nvgColorTo, paint);
+            NanoVG.nvgFillPaint(vg, paint);
+            NanoVG.nvgFill(vg);
+        }
+    }
+
+    public void drawGradientUpDown(long vg, float x, float y, float x2, float y2, Color color,Color colorTo) {
+        // 创建颜色对象并设置
+        NVGColor nvgColor = NVGColor.create()
+                .r(color.getRed() / 255f)
+                .g(color.getGreen() / 255f)
+                .b(color.getBlue() / 255f)
+                .a(color.getAlpha() / 255f);
+        NVGColor nvgColorTo = NVGColor.create()
+                .r(colorTo.getRed() / 255f)
+                .g(colorTo.getGreen() / 255f)
+                .b(colorTo.getBlue() / 255f)
+                .a(colorTo.getAlpha() / 255f);
+
+        NanoVG.nvgBeginPath(vg);
+        NanoVG.nvgRect(vg, x, y, (Math.max(x, x2) - Math.min(x, x2)), (Math.max(y, y2) - Math.min(y, y2)));
+        try (NVGPaint paint = NVGPaint.create()) {
+            NanoVG.nvgLinearGradient(vg, x, y, x, y2, nvgColor, nvgColorTo, paint);
+            NanoVG.nvgFillPaint(vg, paint);
+            NanoVG.nvgFill(vg);
+        }
     }
 
     private void drawEntity(long vg, Vector2f position, float width, float height) {

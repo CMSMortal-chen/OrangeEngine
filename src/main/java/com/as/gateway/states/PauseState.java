@@ -18,9 +18,9 @@ import static org.lwjgl.nanovg.NanoVG.*;
 
 public class PauseState extends GameState {
     private final List<MenuButtonObject> menuButtonObjects;
-    private MenuButtonObject resumeMenuButtonObject;
-    private MenuButtonObject exitMenuButtonObject;
-    private MenuButtonObject mainMenuMenuButtonObject;
+    private final MenuButtonObject resumeMenuButtonObject;
+    private final MenuButtonObject exitMenuButtonObject;
+    private final MenuButtonObject mainMenuMenuButtonObject;
 
     public PauseState(MainGame game) {
         super(game);

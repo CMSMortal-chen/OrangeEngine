@@ -22,9 +22,7 @@ public abstract class GameState {
      * 游戏更新
      * @param deltaTime deltatime
      */
-    public void update(float deltaTime) {
-
-    }
+    public abstract void update(float deltaTime);
 
     public void onMouseClick(int mouseButton){
 
