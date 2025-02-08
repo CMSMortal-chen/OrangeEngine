@@ -5,10 +5,12 @@ import cms.mortalchen.orange.MainGame;
 import cms.mortalchen.orange.resource.ResourceLocation;
 import cms.mortalchen.orange.resource.ResourceManager;
 import cms.mortalchen.orange.OrangeEngine;
+import cms.mortalchen.orange.utils.render.RenderUtils;
 import com.as.gateway.gameplay.MenuButtonObject;
 import cms.mortalchen.orange.render.Image;
 import cms.mortalchen.orange.utils.Utils;
 
+import java.awt.*;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -48,6 +50,8 @@ public class MainMenuState extends GameState {
 
     @Override
     public void render(long vg) {
+        //RenderUtils.drawGradientSideWay(vg,0,0,width,height, Color.BLUE,Color.RED);
+
         game.font.drawText("Project: Gateway", NVG_ALIGN_LEFT | NVG_ALIGN_BOTTOM, 40f, (float) WINDOW_HEIGHT / 2 - 190, 50, Utils.color(1f, 1f, 1f, 1f));
 
         game.font.drawText(OrangeEngine.engineName, NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM, (float) WINDOW_WIDTH + 470, (float) WINDOW_HEIGHT / 2 + 335, 20, Utils.color(0.4f, 0.4f, 0.4f, 0.6f));

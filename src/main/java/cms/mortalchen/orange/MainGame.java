@@ -46,7 +46,7 @@ public class MainGame {
         instance = this;
         initGame();
         double lastTime = glfwGetTime();
-        currentState = new OILOpenOSState(this);
+        currentState = new MainMenuState(this);
 
         while (!glfwWindowShouldClose(window)) {
             try {
