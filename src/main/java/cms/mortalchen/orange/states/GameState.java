@@ -19,12 +19,32 @@ public abstract class GameState {
     public abstract void render(long vg);
 
     /**
+     * 游戏刻更新
+     * @param deltaTime deltatime
+     */
+    public void updateTick(float deltaTime){
+
+    }
+
+    /**
      * 游戏更新
      * @param deltaTime deltatime
      */
-    public abstract void update(float deltaTime);
+    public void update(float deltaTime){
+
+    }
+
 
     public void onMouseClick(int mouseButton){
+
+    }
+
+    /**
+     * 按键输入
+     * @param key 按键ID
+     * @param action 按键行为
+     */
+    public void onKeyPressed(int key, int action) {
 
     }
 

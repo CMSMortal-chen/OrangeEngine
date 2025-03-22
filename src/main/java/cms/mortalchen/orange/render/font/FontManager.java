@@ -8,6 +8,7 @@ public class FontManager {
     public static Font hmSans_CHS;
     public static Font sourceHan_CHS;
     public static Font geometos;
+    public static Font sourceSerif_CHS;
 
     public FontManager(long nvgContext) {
         this.nvgContext = nvgContext;
@@ -17,5 +18,6 @@ public class FontManager {
         geometos = new Font(nvgContext, "Geometos");
         montserrat = new Font(nvgContext, "Montserrat");
         montserratBold = new Font(nvgContext, "Montserrat-Regular","otf");
+        sourceSerif_CHS = new Font(nvgContext, "SourceHanSerif-Regular","ttc");
     }
 }

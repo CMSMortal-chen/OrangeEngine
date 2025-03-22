@@ -1,13 +1,16 @@
 package cms.mortalchen.orange;
 
+import cms.mortalchen.orange.resource.ResourceManager;
 import cms.mortalchen.orange.states.GameState;
+import cms.mortalchen.orange.utils.SyncTimer;
 import com.as.gateway.states.*;
 import cms.mortalchen.orange.render.font.FontManager;
 import cms.mortalchen.orange.render.font.Font;
 import cms.mortalchen.orange.input.InputManager;
 import cms.mortalchen.orange.render.FPS;
 import cms.mortalchen.orange.utils.render.RenderUtils;
-import com.as.gateway.states.olos.OILOpenOSState;
+import com.as.gateway.states.rpg.RPGGame;
+import lombok.SneakyThrows;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.lwjgl.glfw.GLFWErrorCallback;
@@ -37,16 +40,39 @@ public class MainGame {
     public long vg;
     public Font font;
     private long window;
-    private boolean showFPS = true;
+    private boolean showFPS = false;
     public static float deltaTime;
     public static MainGame instance;
     public PauseState pauseState = new PauseState(this);
+    private SyncTimer logicTimer;
+    public boolean exiting = false;
+    public Thread gameUpdateThread = new Thread(() -> {
+        logger.info("GameLogic Thread started.");
+        logicTimer = new SyncTimer(SyncTimer.JAVA_NANO);
+
+        while (!exiting) {
+            try {
+                if (!isGamePaused) {
+                    currentState.updateTick(deltaTime);
+                }
+            }catch (Exception e){
+                logger.fatal("A Exception at GameLogic Thread!");
+                e.printStackTrace(System.err);
+                System.exit(-100);
+            }
+            logicTimer.sync(30);
+        }
+
+        logger.info("GameLogic Thread ended.");
+    },"GameLogicThread");
 
     public void startGame() {
         instance = this;
         initGame();
         double lastTime = glfwGetTime();
         currentState = new MainMenuState(this);
+
+        gameUpdateThread.start();
 
         while (!glfwWindowShouldClose(window)) {
             try {
@@ -65,7 +91,7 @@ public class MainGame {
                 OrangeEngine.deltaTimeMills = System.currentTimeMillis() - OrangeEngine.lastDeltaTimeMills;
                 OrangeEngine.lastDeltaTimeMills = System.currentTimeMillis();
 
-                engine.syncTimer.sync(165);
+                engine.syncTimer.sync(180);
 //            glfwSwapInterval(1);
             } catch (Exception e) {
                 e.printStackTrace(System.err);
@@ -179,6 +205,7 @@ public class MainGame {
         if (isGamePaused) {
             pauseState.updateDisplaySize(WINDOW_WIDTH, WINDOW_HEIGHT);
             pauseState.update(deltaTime);
+            pauseState.updateTick(deltaTime);
         }else {
             currentState.update(deltaTime);
         }
@@ -194,8 +221,7 @@ public class MainGame {
         });
 
         glfwSetKeyCallback(window, (window, key, scancode, action, mods) -> {
-            if (currentState instanceof MainMenuState)
-                ((MainMenuState) currentState).onKeyPressed(key, action);
+            currentState.onKeyPressed(key, action);
 
             if (engine.inputManager.isKeyPressed(GLFW_KEY_ESCAPE)) {
                 if (!(currentState instanceof PauseState) && !(currentState instanceof MainMenuState)) {
@@ -206,15 +232,21 @@ public class MainGame {
 
             if (isGamePaused)
                 pauseState.onKeyPressed(key, action);
-
+            if (engine.inputManager.isKeyPressed(GLFW_KEY_P))
+                RPGGame.instance.isDebug = !RPGGame.instance.isDebug;
             if (engine.inputManager.isKeyPressed(GLFW_KEY_L))
                 showFPS = !showFPS;
         });
         logger.info("Callbacks set");
     }
 
+    @SneakyThrows
     public void endGame() {
         logger.info("Ending game...");
+        exiting = true;
+        while (gameUpdateThread.isAlive()){
+            Thread.sleep(100);
+        }
         cleanup();
         logger.info("Game ended");
         System.exit(0);
@@ -233,6 +265,7 @@ public class MainGame {
         logger.info("Initializing game...");
         engine = new OrangeEngine();
         //new Font(vg, "pixel")
+        OrangeEngine.resourceManager = new ResourceManager(vg);
         OrangeEngine.fontManager = new FontManager(vg);
         font = FontManager.hmSans_CHS;
         engine.inputManager = new InputManager(window);

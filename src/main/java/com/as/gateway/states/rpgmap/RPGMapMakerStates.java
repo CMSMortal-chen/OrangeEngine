@@ -25,7 +25,7 @@ public class RPGMapMakerStates extends GameState {
      * @param deltaTime deltatime
      */
     @Override
-    public void update(float deltaTime) {
+    public void updateTick(float deltaTime) {
 
     }
 }

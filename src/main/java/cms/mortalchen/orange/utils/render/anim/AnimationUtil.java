@@ -2,6 +2,9 @@ package cms.mortalchen.orange.utils.render.anim;
 
 
 import cms.mortalchen.orange.OrangeEngine;
+import cms.mortalchen.orange.render.font.FontManager;
+
+import java.awt.*;
 
 public class AnimationUtil {
    public static float deltaTime = 0;
@@ -148,6 +151,39 @@ public class AnimationUtil {
          }
       }
       return current + movement;
+   }
+
+   public static float getAnimationState(float animation, float finalState, float speed) {
+      deltaTimeUD = OrangeEngine.deltaTimeMills;
+      float add = (speed / (1f / deltaTimeUD * 1000f));
+      if (animation < finalState) {
+         if (animation + add < finalState) {
+            animation += add;
+         } else {
+            animation = finalState;
+         }
+      } else if (animation - add > finalState) {
+         animation -= add;
+      } else {
+         animation = finalState;
+      }
+      return animation;
+   }
+
+   public static double getAnimationState(double animation, double finalState, double speed) {
+      float add = (float) ((0.1 * speed) / (1f / deltaTimeUD * 1000f));
+      if (animation < finalState) {
+         if (animation + add < finalState) {
+            animation += add;
+         } else {
+            animation = finalState;
+         }
+      } else if (animation - add > finalState) {
+         animation -= add;
+      } else {
+         animation = finalState;
+      }
+      return animation;
    }
 
    public static float calculateCompensation(float target, float current, long delta, int speed) {
