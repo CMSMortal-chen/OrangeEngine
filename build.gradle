@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id 'com.github.johnrengelman.shadow' version '7.1.0'
+    id("com.gradleup.shadow") version "9.0.0-beta11"
 }
 
 group = 'cms.mortalchen.orange'
@@ -16,11 +16,8 @@ repositories {
 }
 
 shadowJar {
-    archiveBaseName.set('shadow')
-    archiveClassifier.set('')
-    archiveVersion.set('')
     manifest {
-        attributes 'Main-Class': 'cms.mortalchen.iaallgui.Main'
+        attributes 'Main-Class': 'com.as.gateway.Main'
     }
     mergeServiceFiles()
     from {
@@ -38,7 +35,6 @@ dependencies {
     implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.24.3'
     implementation 'ch.qos.logback:logback-classic:1.4.12'
     implementation "org.joml:joml:${jomlVersion}"
-    implementation "com.zaxxer:HikariCP:5.0.1"
     implementation "org.slf4j:slf4j-api:2.0.7"
     implementation "org.lwjgl:lwjgl"
     implementation "org.lwjgl:lwjgl-assimp"
@@ -51,10 +47,11 @@ dependencies {
     implementation "org.lwjgl:lwjgl-par"
     implementation "org.lwjgl:lwjgl-stb"
     implementation "org.lwjgl:lwjgl-vulkan"
-    implementation "com.google.code.gson:gson:2.8.9"
+// https://mvnrepository.com/artifact/com.alibaba.fastjson2/fastjson2
+    implementation 'com.alibaba.fastjson2:fastjson2:2.0.54'
     implementation 'org.mariadb.jdbc:mariadb-java-client:2.7.3'
-    implementation 'org.projectlombok:lombok:1.18.26'
-    annotationProcessor 'org.projectlombok:lombok:1.18.26'
+    implementation 'org.projectlombok:lombok:1.18.36'
+    annotationProcessor 'org.projectlombok:lombok:1.18.36'
     runtimeOnly "org.lwjgl:lwjgl::$lwjglNatives"
     runtimeOnly "org.lwjgl:lwjgl-assimp::$lwjglNatives"
     runtimeOnly "org.lwjgl:lwjgl-bgfx::$lwjglNatives"

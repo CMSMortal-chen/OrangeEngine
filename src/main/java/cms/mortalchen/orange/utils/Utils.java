@@ -8,6 +8,7 @@ import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
+import java.awt.*;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -65,16 +66,6 @@ public class Utils {
                 }
             }
         }
-    }
-
-    public static void drawImage(long nvg, ResourceLocation location, float x, float y, float width, float height, int alpha, float[] color) {
-        nvgBeginPath(nvg);
-        NVGPaint paint = nvgImagePattern(nvg, x, y, width, height, 0.0F, location.getId(), alpha / 255.0F, NVGPaint.create());
-        paint.innerColor(color(color[0], color[1], color[2], color[3]));
-        paint.outerColor(color(color[0], color[1], color[2], color[3]));
-        nvgRect(nvg, x, y, width, height);
-        nvgFillPaint(nvg, paint);
-        nvgFill(nvg);
     }
 
     public static NVGColor color(float r, float g, float b, float a) {

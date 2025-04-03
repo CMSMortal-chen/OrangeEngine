@@ -3,6 +3,7 @@ package cms.mortalchen.orange.resource;
 import cms.mortalchen.orange.api.ILoggerImp;
 import cms.mortalchen.orange.utils.Utils;
 import lombok.Getter;
+import org.lwjgl.nanovg.NanoVG;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -16,7 +17,6 @@ import static org.lwjgl.nanovg.NanoVG.nvgCreateImageMem;
 import static org.lwjgl.nanovg.NanoVG.nvgDeleteImage;
 
 public class ResourceManager implements ILoggerImp {
-    private static final int NVG_IMAGE_GENERATE_MIPMAPS = 1;
     @Getter
     private final long nvg;
     private final Map<String, Integer> loadedImages;
@@ -26,7 +26,7 @@ public class ResourceManager implements ILoggerImp {
         this.loadedImages = new HashMap<>();
     }
 
-    public int loadImage(String imagePath) {
+    public int loadImage(String imagePath, int flag) {
         if (loadedImages.containsKey(imagePath)) {
             return loadedImages.get(imagePath);
         }
@@ -46,7 +46,7 @@ public class ResourceManager implements ILoggerImp {
             imageBuffer.put(imageBytes);
             imageBuffer.flip();
 
-            int imageId = nvgCreateImageMem(nvg, NVG_IMAGE_GENERATE_MIPMAPS, imageBuffer);
+            int imageId = nvgCreateImageMem(nvg, flag, imageBuffer);
             loadedImages.put(imagePath, imageId);
             return imageId;
         } catch (IOException | NullPointerException e) {

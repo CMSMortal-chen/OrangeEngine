@@ -1,7 +1,7 @@
 package com.as.gateway.gameplay;
 
 import cms.mortalchen.orange.MainGame;
-import cms.mortalchen.orange.input.KeyBindingManager;
+import cms.mortalchen.orange.input.KeyBinding;
 import cms.mortalchen.orange.render.font.Font;
 import cms.mortalchen.orange.utils.Utils;
 import lombok.Setter;
@@ -52,11 +52,11 @@ public class MenuButtonObject {
     public void onKeyPressed(int key, int action, List<MenuButtonObject> menuButtonObjects) {
         boolean keyPressed = action == GLFW_PRESS;
 
-        if (keyPressed && key == KeyBindingManager.Keys.UP.get() && selectedButtonIndex > 0) {
+        if (keyPressed && key == KeyBinding.UP.get() && selectedButtonIndex > 0) {
             selectedButtonIndex--;
-        } else if (keyPressed && key == KeyBindingManager.Keys.DOWN.get() && selectedButtonIndex < menuButtonObjects.size() - 1) {
+        } else if (keyPressed && key == KeyBinding.DOWN.get() && selectedButtonIndex < menuButtonObjects.size() - 1) {
             selectedButtonIndex++;
-        } else if (keyPressed && (key == KeyBindingManager.Keys.INTERACT.get()) && onActivated != null) {
+        } else if (keyPressed && (key == KeyBinding.INTERACT.get()) && onActivated != null) {
             menuButtonObjects.get(selectedButtonIndex).onActivated.run();
         }
     }

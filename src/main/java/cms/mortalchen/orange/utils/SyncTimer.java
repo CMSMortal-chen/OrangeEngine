@@ -1,10 +1,12 @@
 package cms.mortalchen.orange.utils;
 
+import cms.mortalchen.orange.api.ILoggerImp;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.SneakyThrows;
 import org.lwjgl.glfw.GLFW;
 
-public class SyncTimer {
+public class SyncTimer implements ILoggerImp {
 
     final static double
             NANO_RESOLUTION = 1000000000.0D,
@@ -49,7 +51,7 @@ public class SyncTimer {
     public void setNewMode(int timerMode) {
         mode = timerMode;
         timeThen = getTime();
-        System.out.println("Timer mode set to " + getModeString() + " timer");
+        logger.info("Timer mode set to {} timer", getModeString());
     }
 
     public String getModeString() {
@@ -62,7 +64,8 @@ public class SyncTimer {
 
 
 
-    public int sync(double fps) throws InterruptedException {
+    @SneakyThrows
+    public int sync(double fps) {
         double resolution = getResolution();
         double timeNow = getTime();
         int updates = 0;

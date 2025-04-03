@@ -2,8 +2,8 @@ package com.as.gateway.states.olos;
 
 import cms.mortalchen.orange.MainGame;
 import cms.mortalchen.orange.states.GameState;
-import cms.mortalchen.orange.render.menuflow.MenuFlowObj;
-import cms.mortalchen.orange.render.menuflow.MenuFlow;
+import cms.mortalchen.orange.render.oilmenuflow.OILMenuFlowObj;
+import cms.mortalchen.orange.render.oilmenuflow.OILMenuFlow;
 import cms.mortalchen.orange.OrangeEngine;
 import cms.mortalchen.orange.render.font.Font;
 import cms.mortalchen.orange.render.font.FontManager;
@@ -49,20 +49,20 @@ public class OILOpenOSState extends GameState {
      * Based 代表基于此标准组装的机器
      */
     public String modelString = "Device:UX960 Standard";
-    public MenuFlow menuFlow = new MenuFlow();
+    public OILMenuFlow menuFlow = new OILMenuFlow();
     public int index = 1;
     public BounceAnimation bounceAnimation = new BounceAnimation(0f, 0f, 21f);
 
     public OILOpenOSState(MainGame game) {
         super(game);
         menuFlow.add(
-                new MenuFlowObj(0, "Memory Manager", 30f, FontManager.exo, new AnimatedColor(new Color(168, 168, 168), 14f), () -> {
+                new OILMenuFlowObj(0, "Memory Manager", 30f, FontManager.exo, new AnimatedColor(new Color(168, 168, 168), 14f), () -> {
 
                 }),
-                new MenuFlowObj(1, "Setting", 30f, FontManager.exo, new AnimatedColor(new Color(168, 168, 168), 14f), () -> {
+                new OILMenuFlowObj(1, "Setting", 30f, FontManager.exo, new AnimatedColor(new Color(168, 168, 168), 14f), () -> {
 
                 }),
-                new MenuFlowObj(2, "Personality Editor", 30f, FontManager.exo, new AnimatedColor(new Color(168, 168, 168), 14f), () -> {
+                new OILMenuFlowObj(2, "Personality Editor", 30f, FontManager.exo, new AnimatedColor(new Color(168, 168, 168), 14f), () -> {
 
                 })
         );
@@ -100,7 +100,7 @@ public class OILOpenOSState extends GameState {
     boolean isPressed = false;
 
     @Override
-    public void update(float deltaTime) {
+    public void updateTick(float deltaTime) {
         if (OrangeEngine.instance.inputManager.isKeyPressed(GLFW.GLFW_KEY_W)) {
             if (index > 0 && !isPressed) {
                 index--;
