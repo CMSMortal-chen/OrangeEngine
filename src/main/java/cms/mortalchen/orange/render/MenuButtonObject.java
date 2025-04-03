@@ -1,4 +1,4 @@
-package com.as.gateway.gameplay;
+package cms.mortalchen.orange.render;
 
 import cms.mortalchen.orange.MainGame;
 import cms.mortalchen.orange.input.KeyBinding;

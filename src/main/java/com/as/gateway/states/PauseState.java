@@ -3,10 +3,9 @@ package com.as.gateway.states;
 import cms.mortalchen.orange.OrangeEngine;
 import cms.mortalchen.orange.states.GameState;
 import cms.mortalchen.orange.MainGame;
-import com.as.gateway.gameplay.MenuButtonObject;
+import cms.mortalchen.orange.render.MenuButtonObject;
 import cms.mortalchen.orange.render.font.FontManager;
 import cms.mortalchen.orange.utils.render.RenderUtils;
-import org.lwjgl.glfw.GLFW;
 
 import java.awt.*;
 import java.util.ArrayList;
