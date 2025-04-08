@@ -61,7 +61,7 @@ public class RPGMenu extends GameGui {
             }
         }
 
-        RenderUtils.drawGradientSideWay(vg,0,0,(width / 2.5f) - animX,height,new Color(255,255,255,100), new Color(255,255,255,0));
+        RenderUtils.drawGradientSideWay(vg,0,0,(width / 2.5f) - animX,height,new Color(255, 255, 255, 219), new Color(255,255,255,0));
 
         mainMenuFlow.render(vg, 40 - animX, 50, 80, index);
         if (currentWindow != null) {
