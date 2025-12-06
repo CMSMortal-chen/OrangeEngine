@@ -1,32 +1,28 @@
 package cms.mortalchen.orange.utils.render.anim.animatednumber;
 
 
-import cms.mortalchen.orange.utils.render.anim.AnimationUtil;
+import cms.mortalchen.orange.utils.render.anim.Motion;
 
 public class AnimatedDouble {
-    public AnimatedDouble(double initValue){
-        value = initValue;
-    }
-    public AnimatedDouble(){
+    Motion.Controller controller;
 
-    }
-    public double value = 0d;
-
-    public void move(double target, double speed) {
-        if (Double.isNaN(value) || Double.isInfinite(value)) value = 0d;
-        value = AnimationUtil.animate(target, value, speed);
+    public AnimatedDouble(double initValue) {
+        controller = new Motion.Controller(initValue);
     }
 
-    public void moveUD(double target, float smoothSpeed, float minSpeed) {
-        if (Double.isNaN(value) || Double.isInfinite(value)) value = 0d;
-        value = AnimationUtil.moveUD(value, target, smoothSpeed, minSpeed);
+    public AnimatedDouble() {
+        controller = new Motion.Controller(0);
+    }
+
+    public void to(double target, long duration, Motion.Easing easing) {
+        controller.to(target,duration,easing);
     }
 
     public double get() {
-        return value;
+        return controller.get();
     }
 
     public void set(double value) {
-        this.value = value;
+        controller.set(value);
     }
 }

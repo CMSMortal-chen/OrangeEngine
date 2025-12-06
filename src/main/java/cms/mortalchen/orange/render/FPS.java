@@ -1,7 +1,5 @@
 package cms.mortalchen.orange.render;
 
-import org.lwjgl.glfw.GLFW;
-
 public class FPS {
     private final float updateInterval;
     private int frameCount;

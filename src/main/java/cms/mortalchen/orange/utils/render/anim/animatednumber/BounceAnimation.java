@@ -5,6 +5,7 @@ import cms.mortalchen.orange.utils.render.anim.AnimationUtil;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
+@Deprecated
 @RequiredArgsConstructor
 public class BounceAnimation {
     @NonNull

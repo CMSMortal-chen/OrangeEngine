@@ -103,6 +103,20 @@ public class RenderUtils {
         NanoVG.nvgFill(vg);
     }
 
+    public void drawRect(long vg, double x, double y, double x2, double y2, Color color) {
+        // 创建颜色对象并设置
+        NVGColor nvgColor = NVGColor.create()
+                .r(color.getRed() / 255f)
+                .g(color.getGreen() / 255f)
+                .b(color.getBlue() / 255f)
+                .a(color.getAlpha() / 255f);
+
+        NanoVG.nvgBeginPath(vg);
+        NanoVG.nvgRect(vg, (float) x, (float) y, (float) (Math.max(x, x2) - Math.min(x, x2)), (float) (Math.max(y, y2) - Math.min(y, y2)));
+        NanoVG.nvgFillColor(vg, nvgColor);
+        NanoVG.nvgFill(vg);
+    }
+
     public void drawGradientSideWay(long vg, float x, float y, float x2, float y2, Color color,Color colorTo) {
         // 创建颜色对象并设置
         NVGColor nvgColor = NVGColor.create()

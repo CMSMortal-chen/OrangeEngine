@@ -5,6 +5,7 @@ import cms.mortalchen.orange.MainGame;
 public abstract class GameState {
     public final MainGame game;
     public float width, height;
+    public boolean allowPause = true;
 
     public GameState(MainGame game) {
         this.game = game;
@@ -20,6 +21,7 @@ public abstract class GameState {
 
     /**
      * 游戏刻更新
+     * 每秒钟更新30tick
      * @param deltaTime deltatime
      */
     public void updateTick(float deltaTime){
@@ -28,6 +30,7 @@ public abstract class GameState {
 
     /**
      * 游戏更新
+     * 每帧更新一次
      * @param deltaTime deltatime
      */
     public void update(float deltaTime){

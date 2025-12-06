@@ -2,21 +2,24 @@ package cms.mortalchen.orange;
 
 import cms.mortalchen.orange.resource.ResourceManager;
 import cms.mortalchen.orange.states.GameState;
+import cms.mortalchen.orange.states.DefaultState;
+import cms.mortalchen.orange.states.PauseState;
 import cms.mortalchen.orange.utils.SyncTimer;
-import com.as.gateway.states.*;
 import cms.mortalchen.orange.render.font.FontManager;
 import cms.mortalchen.orange.render.font.Font;
 import cms.mortalchen.orange.input.InputManager;
 import cms.mortalchen.orange.render.FPS;
+import cms.mortalchen.orange.utils.Utils;
 import cms.mortalchen.orange.utils.render.RenderUtils;
-import com.as.gateway.states.rpg.RPGGame;
 import lombok.SneakyThrows;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.lwjgl.glfw.GLFWErrorCallback;
 import org.lwjgl.glfw.GLFWImage;
+import org.lwjgl.glfw.GLFWWindowSizeCallback;
 import org.lwjgl.opengl.GL;
 
+import javax.swing.*;
 import java.awt.*;
 
 import static cms.mortalchen.orange.utils.Utils.loadImage;
@@ -28,7 +31,7 @@ import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
 public class MainGame {
-    public static final String name = "Project Gateway";
+    public static String name = "OrangeEngine";
     public final Logger logger = LogManager.getLogger(name + "-Game");
     public static int WINDOW_WIDTH = 1280;
     public static int WINDOW_HEIGHT = 720;
@@ -44,11 +47,13 @@ public class MainGame {
     public static float deltaTime;
     public static MainGame instance;
     public PauseState pauseState = new PauseState(this);
-    private SyncTimer logicTimer;
     public boolean exiting = false;
+
+    public static Runnable startMainGame = () -> {};
+
     public Thread gameUpdateThread = new Thread(() -> {
         logger.info("GameLogic Thread started.");
-        logicTimer = new SyncTimer(SyncTimer.JAVA_NANO);
+        SyncTimer logicTimer = new SyncTimer(SyncTimer.JAVA_NANO);
 
         while (!exiting) {
             try {
@@ -57,8 +62,7 @@ public class MainGame {
                 }
             }catch (Exception e){
                 logger.fatal("A Exception at GameLogic Thread!");
-                e.printStackTrace(System.err);
-                System.exit(-100);
+                Utils.panic(logger,e);
             }
             logicTimer.sync(30);
         }
@@ -70,9 +74,11 @@ public class MainGame {
         instance = this;
         initGame();
         double lastTime = glfwGetTime();
-        currentState = new MainMenuState(this);
+        currentState = new DefaultState(this);
 
         gameUpdateThread.start();
+
+        //AnimationUtil.moveUD(0f,14f,14f,2f);
 
         while (!glfwWindowShouldClose(window)) {
             try {
@@ -80,7 +86,11 @@ public class MainGame {
 
                 deltaTime = (float) (currentTime - lastTime);
 
-                renderGame();
+                try {
+                    renderGame();
+                }catch (Exception e) {
+                    logger.error("Render ERROR!", e);
+                }
                 updateGame(deltaTime);
                 glfwSwapBuffers(window);
                 glfwPollEvents();
@@ -94,7 +104,7 @@ public class MainGame {
                 engine.syncTimer.sync(180);
 //            glfwSwapInterval(1);
             } catch (Exception e) {
-                e.printStackTrace(System.err);
+                Utils.panic(logger, e);
             }
         }
         endGame();
@@ -119,8 +129,10 @@ public class MainGame {
             initialize();
 
             setWindowIcon();
+            logger.info("Running on OpenGL:{}", glGetString(GL_VERSION));
         } catch (Exception e) {
-            e.printStackTrace();
+            JOptionPane.showMessageDialog(null,"引擎启动失败！请向开发者提供您的游戏日志！","Error",JOptionPane.ERROR_MESSAGE);
+            Utils.panic(logger,e);
         }
     }
 
@@ -130,15 +142,19 @@ public class MainGame {
         glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
         glfwWindowHint(GLFW_SAMPLES, 4);
         //(GLFW_RESIZABLE, GLFW_FALSE);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+        glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
         window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE, NULL, NULL);
         if (window == NULL) {
             throw new RuntimeException("Failed to create the GLFW window");
         }
-        glfwSetWindowSizeCallback(window, (windowHandle, width, height) -> {
-            glViewport(0, 0, width, height);
-        });
-        logger.info("Window created");
+        try(GLFWWindowSizeCallback windowSize = glfwSetWindowSizeCallback(window, (windowHandle, width, height) -> glViewport(0, 0, width, height))) {
+            logger.info("Window created.");
+        }catch (Exception e){
+            logger.error("Err:", e);
+        }
     }
 
     private void initNanoVG() {
@@ -159,12 +175,18 @@ public class MainGame {
 
     private void renderGame() {
         prepareRendering();
+        nvgBeginFrame(vg, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f);
+        RenderUtils.drawRect(vg,-10,-10,WINDOW_WIDTH + 10, WINDOW_HEIGHT + 10, Color.BLACK);
+        nvgEndFrame(vg);
 
         nvgBeginFrame(vg, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f);
-
-        RenderUtils.drawRect(vg,-10,-10,WINDOW_WIDTH + 10, WINDOW_HEIGHT + 10, Color.BLACK);
-
         currentState.render(vg);
+        nvgEndFrame(vg);
+
+        nvgBeginFrame(vg, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f);
+//        nvgTranslate(vg,width * 0.5f, height * 0.5f);
+//        nvgScale(vg,1f,1f);
+//        nvgTranslate(vg,-width * 0.5f, -height * 0.5f);
 
         if (isGamePaused) {
             pauseState.render(vg);
@@ -176,7 +198,6 @@ public class MainGame {
         }
 
         nvgEndFrame(vg);
-
         finishRendering();
     }
 
@@ -221,26 +242,26 @@ public class MainGame {
         });
 
         glfwSetKeyCallback(window, (window, key, scancode, action, mods) -> {
-            currentState.onKeyPressed(key, action);
-
             if (engine.inputManager.isKeyPressed(GLFW_KEY_ESCAPE)) {
-                if (!(currentState instanceof PauseState) && !(currentState instanceof MainMenuState)) {
+                if (!(currentState instanceof PauseState) && currentState.allowPause) {
                     isGamePaused = !isGamePaused;
                     //changeState(new PauseState(this));
                 }
             }
 
-            if (isGamePaused)
+            if (isGamePaused) {
                 pauseState.onKeyPressed(key, action);
-            if (engine.inputManager.isKeyPressed(GLFW_KEY_P))
-                RPGGame.instance.isDebug = !RPGGame.instance.isDebug;
+            }else {
+                currentState.onKeyPressed(key, action);
+            }
+
             if (engine.inputManager.isKeyPressed(GLFW_KEY_L))
                 showFPS = !showFPS;
         });
         logger.info("Callbacks set");
     }
 
-    @SneakyThrows
+    @SneakyThrows(InterruptedException.class)
     public void endGame() {
         logger.info("Ending game...");
         exiting = true;

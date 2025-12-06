@@ -10,6 +10,8 @@ import org.joml.Vector2f;
 
 import java.awt.*;
 
+import static org.lwjgl.glfw.GLFW.GLFW_KEY_P;
+
 public class RPGGameState extends GameState {
 
     RPGGame rpgGame = new RPGGame();
@@ -64,6 +66,8 @@ public class RPGGameState extends GameState {
 
     @Override
     public void onKeyPressed(int key, int action) {
+        if (OrangeEngine.instance.inputManager.isKeyPressed(GLFW_KEY_P))
+            RPGGame.instance.isDebug = !RPGGame.instance.isDebug;
         if (rpgGame.currentGui != null) {
             rpgGame.currentGui.onKeyPressed(key, action);
             rpgGame.player.controller.isWalking = false;

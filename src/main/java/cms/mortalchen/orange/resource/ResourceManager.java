@@ -50,8 +50,7 @@ public class ResourceManager implements ILoggerImp {
             loadedImages.put(imagePath, imageId);
             return imageId;
         } catch (IOException | NullPointerException e) {
-            logger.error("Failed to load image: %s", imagePath);
-            e.printStackTrace();
+            logger.error("Failed to load image: {}", imagePath , e);
         }
         return 0;
     }

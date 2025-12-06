@@ -1,22 +1,23 @@
 package com.as.gateway.states;
 
+import cms.mortalchen.orange.MainGame;
+import cms.mortalchen.orange.OrangeEngine;
 import cms.mortalchen.orange.input.KeyBinding;
 import cms.mortalchen.orange.render.font.FontManager;
 import cms.mortalchen.orange.render.menuflow.MenuFlow;
 import cms.mortalchen.orange.render.menuflow.MenuFlowObj;
 import cms.mortalchen.orange.states.GameState;
-import cms.mortalchen.orange.MainGame;
-import cms.mortalchen.orange.OrangeEngine;
+import cms.mortalchen.orange.utils.Utils;
 import cms.mortalchen.orange.utils.render.RenderUtils;
 import cms.mortalchen.orange.utils.render.anim.AnimatedColor;
-import cms.mortalchen.orange.utils.Utils;
 import com.as.gateway.states.rpg.RPGGameState;
 import org.lwjgl.glfw.GLFW;
 
 import java.awt.*;
 
 import static cms.mortalchen.orange.MainGame.WINDOW_HEIGHT;
-import static org.lwjgl.nanovg.NanoVG.*;
+import static org.lwjgl.nanovg.NanoVG.NVG_ALIGN_LEFT;
+import static org.lwjgl.nanovg.NanoVG.NVG_ALIGN_TOP;
 
 public class MainMenuState extends GameState {
     MenuFlow menuFlow = new MenuFlow();

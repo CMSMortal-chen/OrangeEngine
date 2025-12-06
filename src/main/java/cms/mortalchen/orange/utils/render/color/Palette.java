@@ -117,6 +117,7 @@ public class Palette {
         return (new Color(c.getRed() / 255f, c.getGreen() / 255f, c.getBlue() / 255f, alpha)).getRGB();
     }
     public static Color reAlpha(Color color, float alpha) {
+        alpha = Math.min(Math.abs(alpha), 1f);
         return (new Color(color.getRed() / 255f, color.getGreen() / 255f, color.getBlue() / 255f, alpha));
     }
     public static Color inverse(Color color) {

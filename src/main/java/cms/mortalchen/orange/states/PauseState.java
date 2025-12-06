@@ -1,7 +1,6 @@
-package com.as.gateway.states;
+package cms.mortalchen.orange.states;
 
 import cms.mortalchen.orange.OrangeEngine;
-import cms.mortalchen.orange.states.GameState;
 import cms.mortalchen.orange.MainGame;
 import cms.mortalchen.orange.render.MenuButtonObject;
 import cms.mortalchen.orange.render.font.FontManager;
@@ -23,6 +22,7 @@ public class PauseState extends GameState {
 
     public PauseState(MainGame game) {
         super(game);
+        allowPause = false;
         menuButtonObjects = new ArrayList<>();
 
 
@@ -32,7 +32,7 @@ public class PauseState extends GameState {
 
 
         resumeMenuButtonObject.setOnActivated(this::resumeGame);
-        mainMenuMenuButtonObject.setOnActivated(() -> game.changeState(new MainMenuState(game)));
+        mainMenuMenuButtonObject.setOnActivated(() -> MainGame.startMainGame.run());
         exitMenuButtonObject.setOnActivated(game::endGame);
 
         menuButtonObjects.add(resumeMenuButtonObject);
@@ -43,7 +43,7 @@ public class PauseState extends GameState {
     @Override
     public void render(long vg) {
         RenderUtils.drawRect(game.vg,0,0, WINDOW_WIDTH, WINDOW_HEIGHT, new Color(0,0,0,200));
-        game.font.drawText("PAUSED", NVG_ALIGN_LEFT | NVG_ALIGN_BASELINE, 40f, height / 2f - 200f, 50, Color.WHITE);
+        game.font.drawText("Pause Menu", NVG_ALIGN_LEFT | NVG_ALIGN_BASELINE, 40f, height / 2f - 200f, 50, Color.WHITE);
         FontManager.geometos.drawText(OrangeEngine.engineName.split(" ")[0], NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM, width - 19f, height - 30f, 35, new Color(255,255,255));
         FontManager.geometos.drawText(OrangeEngine.engineName.split(" ")[1], NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM, width - 20f, height - 10f, 25, new Color(255,255,255));
 

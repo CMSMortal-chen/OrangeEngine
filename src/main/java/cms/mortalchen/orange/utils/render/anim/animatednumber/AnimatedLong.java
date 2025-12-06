@@ -1,17 +1,28 @@
 package cms.mortalchen.orange.utils.render.anim.animatednumber;
 
 
-import cms.mortalchen.orange.utils.render.anim.AnimationUtil;
+import cms.mortalchen.orange.utils.render.anim.Motion;
 
 public class AnimatedLong {
-    public long value = 0;
-    public void move(long target, long speed){
-        value = (long) AnimationUtil.animate(target,value,speed);
+    Motion.Controller controller;
+
+    public AnimatedLong(long initValue) {
+        controller = new Motion.Controller(initValue);
     }
-    public void moveUD(int target, float smoothSpeed, float minSpeed) {
-        value = (long) AnimationUtil.moveUD(value, target, smoothSpeed, minSpeed);
+
+    public AnimatedLong() {
+        controller = new Motion.Controller(0);
     }
-    public long get(){
-        return value;
+
+    public void to(long target, long duration, Motion.Easing easing) {
+        controller.to(target,duration,easing);
+    }
+
+    public long get() {
+        return (long) controller.get();
+    }
+
+    public void set(long value) {
+        controller.set(value);
     }
 }

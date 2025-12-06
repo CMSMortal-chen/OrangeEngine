@@ -1,9 +1,10 @@
 package cms.mortalchen.orange.utils;
 
-import cms.mortalchen.orange.resource.ResourceLocation;
+import cms.mortalchen.orange.MainGame;
+import cms.mortalchen.orange.OrangeEngine;
+import org.apache.logging.log4j.Logger;
 import org.lwjgl.glfw.GLFWImage;
 import org.lwjgl.nanovg.NVGColor;
-import org.lwjgl.nanovg.NVGPaint;
 import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
@@ -17,10 +18,7 @@ import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 import java.util.Objects;
 
-import static org.lwjgl.nanovg.NanoVG.*;
-
 public class Utils {
-
     public static GLFWImage.Buffer loadImage(String path) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
             ByteBuffer imageBuffer = null;
@@ -70,5 +68,12 @@ public class Utils {
 
     public static NVGColor color(float r, float g, float b, float a) {
         return NVGColor.calloc().a(a).r(r).g(g).b(b);
+    }
+
+    public static void panic(Logger logger, Exception e) {
+        logger.fatal("!!!{} Engine Panic!!!", OrangeEngine.engineName);
+        logger.fatal("Exception:", e);
+        logger.fatal("!!!Encounter PANIC! {} will now EXIT!!!", OrangeEngine.engineName);
+        System.exit(-1);
     }
 }
