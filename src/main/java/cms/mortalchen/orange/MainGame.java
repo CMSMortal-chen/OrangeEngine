@@ -237,10 +237,15 @@ public class MainGame {
 
     private void setupCallbacks() {
         logger.info("Setting up callbacks...");
-        glfwSetMouseButtonCallback(window, (window, button, action, mods) -> {
-                currentState.onMouseClick(button);
-        });
 
+        glfwSetMouseButtonCallback(window, (window, button, action, mods) -> {
+            if (isGamePaused) {
+                pauseState.onMouseClick(button, action, OrangeEngine.instance.inputManager.getMousePos());
+            }else  {
+                currentState.onMouseClick(button, action,OrangeEngine.instance.inputManager.getMousePos());
+            }
+        });
+        
         glfwSetKeyCallback(window, (window, key, scancode, action, mods) -> {
             if (engine.inputManager.isKeyPressed(GLFW_KEY_ESCAPE)) {
                 if (!(currentState instanceof PauseState) && currentState.allowPause) {
@@ -257,6 +262,14 @@ public class MainGame {
 
             if (engine.inputManager.isKeyPressed(GLFW_KEY_L))
                 showFPS = !showFPS;
+        });
+        // 在现有的glfwSetKeyCallback之后添加以下代码
+        glfwSetCharCallback(window, (window, codepoint) -> {
+            if (isGamePaused) {
+                // 如果需要，为暂停状态添加字符处理
+            } else {
+                currentState.onChar(codepoint);
+            }
         });
         logger.info("Callbacks set");
     }

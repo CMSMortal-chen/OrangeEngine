@@ -9,6 +9,7 @@ public class FontManager {
     public static Font sourceHan_CHS;
     public static Font geometos;
     public static Font sourceSerif_CHS;
+    public static Font jetBrainsMono;
 
     public FontManager(long nvgContext) {
         this.nvgContext = nvgContext;
@@ -19,5 +20,6 @@ public class FontManager {
         montserrat = new Font(nvgContext, "Montserrat");
         montserratBold = new Font(nvgContext, "Montserrat-Regular","otf");
         sourceSerif_CHS = new Font(nvgContext, "SourceHanSerif-Regular","ttc");
+        jetBrainsMono = new Font(nvgContext, "JetBrainsMonoNerdFontMono-Regular","ttf");
     }
 }

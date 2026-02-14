@@ -52,47 +52,6 @@ public class Font {
         }
     }
 
-    public void drawText(String text, int alignment, float x, float y, float fontSize, Color color) {
-        // 创建颜色对象并设置
-        NVGColor nvgColor = NVGColor.create()
-                .r(color.getRed() / 255f)
-                .g(color.getGreen() / 255f)
-                .b(color.getBlue() / 255f)
-                .a(color.getAlpha() / 255f);
-
-        nvgFontSize(nvg, fontSize);
-        nvgFontFace(nvg, fontName);
-        nvgTextAlign(nvg, alignment);
-        nvgFillColor(nvg, nvgColor);
-        nvgText(nvg, x, y, text);
-
-
-    }
-
-    public void drawText(String text, int alignment, float x, float y, float fontSize, NVGColor nvgColor) {
-        nvgFontSize(nvg, fontSize);
-        nvgFontFace(nvg, fontName);
-        nvgTextAlign(nvg, alignment);
-        nvgFillColor(nvg, nvgColor);
-        nvgText(nvg, x, y, text);
-    }
-
-    public void drawText(String text, float x, float y, float fontSize, Color color) {
-        // 创建颜色对象并设置
-        NVGColor nvgColor = NVGColor.create()
-                .r(color.getRed() / 255f)
-                .g(color.getGreen() / 255f)
-                .b(color.getBlue() / 255f)
-                .a(color.getAlpha() / 255f);
-
-        nvgFontSize(nvg, fontSize);
-        nvgFontFace(nvg, fontName);
-        nvgTextAlign(nvg, NVG_ALIGN_TOP | NVG_ALIGN_LEFT);
-        nvgFillColor(nvg, nvgColor);
-        nvgText(nvg, x, y, text);
-
-    }
-
     public void drawTextWithShadow(String text, float x, float y, float fontSize, Color color) {
         // 创建颜色对象并设置
         drawText(text, x + 1f, y + 1f, fontSize, new Color(0,0,0, (int) (150 * (color.getAlpha() / 255f))));
@@ -101,11 +60,43 @@ public class Font {
 
     public void drawTextWithShadow(String text, int alignment, float x, float y, float fontSize, Color color) {
         // 创建颜色对象并设置
-        drawText(text, alignment, x + 1f, y + 1f, fontSize, new Color(0,0,0, (int) (150 * (color.getAlpha() / 255f))));
-        drawText(text, alignment, x, y, fontSize, color);
+        drawText(text, alignment, x + 1f, y + 1f, fontSize,0, new Color(0,0,0, (int) (150 * (color.getAlpha() / 255f))));
+        drawText(text, alignment, x, y, fontSize,0, color);
     }
 
     public void drawCenteredText(String text, float x, float y, float fontSize, Color color) {
+        drawText(text, NVG_ALIGN_TOP | NVG_ALIGN_CENTER, x, y, fontSize, 0,color);
+    }
+
+    public void drawCenteredTextWithSpacing(String text, float x, float y, float fontSize, float spacing, Color color) {
+        drawText(text, NVG_ALIGN_TOP | NVG_ALIGN_CENTER, x, y, fontSize, spacing,color);
+    }
+
+    public void drawTextWithSpacing(String text, float x, float y, float fontSize,float spacing, Color color) {
+        drawText(text, NVG_ALIGN_TOP | NVG_ALIGN_LEFT, x, y, fontSize, spacing, color);
+    }
+
+    public void drawTextWithSpacing(String text, float x, float y, float fontSize,float spacing, NVGColor nvgColor) {
+        drawText(text, NVG_ALIGN_TOP | NVG_ALIGN_LEFT, x, y, fontSize, spacing, nvgColor);
+    }
+
+    public void drawText(String text, float x, float y, float fontSize, Color color) {
+        drawText(text, NVG_ALIGN_TOP | NVG_ALIGN_LEFT, x, y, fontSize, 0, color);
+    }
+
+    public void drawText(String text, float x, float y, float fontSize, NVGColor nvgColor) {
+        drawText(text, NVG_ALIGN_TOP | NVG_ALIGN_LEFT, x, y, fontSize, 0, nvgColor);
+    }
+
+    public void drawText(String text, int alignment, float x, float y, float fontSize, Color color) {
+        drawText(text, alignment, x, y, fontSize, 0, color);
+    }
+
+    public void drawText(String text, int alignment, float x, float y, float fontSize, NVGColor color) {
+        drawText(text, alignment, x, y, fontSize, 0, color);
+    }
+
+    public void drawText(String text, int alignment, float x, float y, float fontSize,float spacing, Color color) {
         // 创建颜色对象并设置
         NVGColor nvgColor = NVGColor.create()
                 .r(color.getRed() / 255f)
@@ -113,13 +104,16 @@ public class Font {
                 .b(color.getBlue() / 255f)
                 .a(color.getAlpha() / 255f);
 
+        drawText(text, alignment, x, y, fontSize, spacing, nvgColor);
+    }
+
+    public void drawText(String text, int alignment, float x, float y, float fontSize,float spacing, NVGColor nvgColor) {
         nvgFontSize(nvg, fontSize);
         nvgFontFace(nvg, fontName);
-        nvgTextAlign(nvg, NVG_ALIGN_TOP | NVG_ALIGN_CENTER);
+        nvgTextAlign(nvg, alignment);
+        nvgTextLetterSpacing(nvg, spacing);
         nvgFillColor(nvg, nvgColor);
         nvgText(nvg, x, y, text);
-
-
     }
 
     public float getStringWidth(String text, float fontSize) {
