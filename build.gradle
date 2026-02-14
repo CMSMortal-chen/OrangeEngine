@@ -1,6 +1,6 @@
 plugins {
     id 'java'
-    id("com.gradleup.shadow") version "9.0.0-beta11"
+    id("com.gradleup.shadow") version "9.3.1"
 }
 
 group = 'cms.mortalchen.orange'
@@ -50,8 +50,8 @@ dependencies {
 // https://mvnrepository.com/artifact/com.alibaba.fastjson2/fastjson2
     implementation 'com.alibaba.fastjson2:fastjson2:2.0.54'
     implementation 'org.mariadb.jdbc:mariadb-java-client:2.7.3'
-    implementation 'org.projectlombok:lombok:1.18.36'
-    annotationProcessor 'org.projectlombok:lombok:1.18.36'
+    implementation 'org.projectlombok:lombok:1.18.42'
+    annotationProcessor 'org.projectlombok:lombok:1.18.42'
     runtimeOnly "org.lwjgl:lwjgl::$lwjglNatives"
     runtimeOnly "org.lwjgl:lwjgl-assimp::$lwjglNatives"
     runtimeOnly "org.lwjgl:lwjgl-bgfx::$lwjglNatives"
