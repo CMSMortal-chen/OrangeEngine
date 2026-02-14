@@ -9,7 +9,7 @@ import cms.mortalchen.orange.utils.SyncTimer;
 public class OrangeEngine {
     public static final String name = "Orange";
     public static final String engineName = "Orange Engine";
-    public static final String version = "ver0.10";
+    public static final String version = "ver0.11";
     public InputManager inputManager;
     public static FontManager fontManager;
     public static ResourceManager resourceManager;
