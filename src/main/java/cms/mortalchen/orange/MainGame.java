@@ -35,7 +35,7 @@ public class MainGame {
     public final Logger logger = LogManager.getLogger(name + "-Game");
     public static int WINDOW_WIDTH = 1280;
     public static int WINDOW_HEIGHT = 720;
-    private static final String WINDOW_TITLE = name;
+    public static String WINDOW_TITLE = name;
     public GameState currentState;
     public OrangeEngine engine;
     //public PongServer server;
