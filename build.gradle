@@ -6,8 +6,8 @@ plugins {
 group = 'cms.mortalchen.orange'
 version = '1.0-SNAPSHOT'
 
-project.ext.jomlVersion = "1.10.7"
-project.ext.lwjglVersion = "3.3.6"
+project.ext.jomlVersion = "1.10.8"
+project.ext.lwjglVersion = "3.4.1"
 project.ext.lwjglNatives = "natives-windows"
 
 repositories {
@@ -32,8 +32,7 @@ shadowJar {
 dependencies {
     implementation platform("org.lwjgl:lwjgl-bom:$lwjglVersion")
     // https://mvnrepository.com/artifact/org.apache.logging.log4j/log4j-core
-    implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.24.3'
-    implementation 'ch.qos.logback:logback-classic:1.4.12'
+    implementation group: 'org.apache.logging.log4j', name: 'log4j-core', version: '2.25.3'
     implementation "org.joml:joml:${jomlVersion}"
     implementation "org.slf4j:slf4j-api:2.0.7"
     implementation "org.lwjgl:lwjgl"
@@ -48,7 +47,7 @@ dependencies {
     implementation "org.lwjgl:lwjgl-stb"
     implementation "org.lwjgl:lwjgl-vulkan"
 // https://mvnrepository.com/artifact/com.alibaba.fastjson2/fastjson2
-    implementation 'com.alibaba.fastjson2:fastjson2:2.0.54'
+    implementation 'com.alibaba.fastjson2:fastjson2:2.0.61'
     implementation 'org.mariadb.jdbc:mariadb-java-client:2.7.3'
     implementation 'org.projectlombok:lombok:1.18.42'
     annotationProcessor 'org.projectlombok:lombok:1.18.42'
