@@ -161,6 +161,17 @@ public class RenderUtils {
 
     }
 
+    public static NVGColor nvgColor(Color color) {
+        // 创建颜色对象并设置
+        NVGColor nvgColor = NVGColor.create()
+                .r(color.getRed() / 255f)
+                .g(color.getGreen() / 255f)
+                .b(color.getBlue() / 255f)
+                .a(color.getAlpha() / 255f);
+
+        return NVGColor.create();
+    }
+
     // 绘制填充三角形
     public static void fillTriangle(
             long nvgContext,

@@ -38,7 +38,6 @@ public class MainGame {
     public static String WINDOW_TITLE = name;
     public GameState currentState;
     public OrangeEngine engine;
-    //public PongServer server;
     public boolean isGamePaused = false;
     public long vg;
     public Font font;
@@ -46,6 +45,9 @@ public class MainGame {
     private boolean showFPS = false;
     public static float deltaTime;
     public static MainGame instance;
+    public static boolean isPauseEnable = true;
+    public static boolean introEnable = true;
+    public static boolean fastIntro = false;
     public PauseState pauseState = new PauseState(this);
     public boolean exiting = false;
 
@@ -78,8 +80,6 @@ public class MainGame {
 
         gameUpdateThread.start();
 
-        //AnimationUtil.moveUD(0f,14f,14f,2f);
-
         while (!glfwWindowShouldClose(window)) {
             try {
                 double currentTime = glfwGetTime();
@@ -102,7 +102,6 @@ public class MainGame {
                 OrangeEngine.lastDeltaTimeMills = System.currentTimeMillis();
 
                 engine.syncTimer.sync(180);
-//            glfwSwapInterval(1);
             } catch (Exception e) {
                 Utils.panic(logger, e);
             }
@@ -141,7 +140,7 @@ public class MainGame {
         glfwDefaultWindowHints();
         glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
         glfwWindowHint(GLFW_SAMPLES, 4);
-        //(GLFW_RESIZABLE, GLFW_FALSE);
+
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
@@ -184,9 +183,6 @@ public class MainGame {
         nvgEndFrame(vg);
 
         nvgBeginFrame(vg, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f);
-//        nvgTranslate(vg,width * 0.5f, height * 0.5f);
-//        nvgScale(vg,1f,1f);
-//        nvgTranslate(vg,-width * 0.5f, -height * 0.5f);
 
         if (isGamePaused) {
             pauseState.render(vg);
@@ -248,9 +244,8 @@ public class MainGame {
         
         glfwSetKeyCallback(window, (window, key, scancode, action, mods) -> {
             if (engine.inputManager.isKeyPressed(GLFW_KEY_ESCAPE)) {
-                if (!(currentState instanceof PauseState) && currentState.allowPause) {
+                if (!(currentState instanceof PauseState) && currentState.allowPause && isPauseEnable) {
                     isGamePaused = !isGamePaused;
-                    //changeState(new PauseState(this));
                 }
             }
 
@@ -263,10 +258,10 @@ public class MainGame {
             if (engine.inputManager.isKeyPressed(GLFW_KEY_L))
                 showFPS = !showFPS;
         });
-        // 在现有的glfwSetKeyCallback之后添加以下代码
+
         glfwSetCharCallback(window, (window, codepoint) -> {
             if (isGamePaused) {
-                // 如果需要，为暂停状态添加字符处理
+                pauseState.onChar(codepoint);
             } else {
                 currentState.onChar(codepoint);
             }
@@ -298,7 +293,7 @@ public class MainGame {
     public void initialize() {
         logger.info("Initializing game...");
         engine = new OrangeEngine();
-        //new Font(vg, "pixel")
+
         OrangeEngine.resourceManager = new ResourceManager(vg);
         OrangeEngine.fontManager = new FontManager(vg);
         font = FontManager.hmSans_CHS;

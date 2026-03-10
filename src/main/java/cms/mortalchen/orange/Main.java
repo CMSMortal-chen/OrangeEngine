@@ -1,8 +1,9 @@
 package cms.mortalchen.orange;
 
 public class Main {
-    public static void main(String[] args) {
+    void main() {
         MainGame mainGame = new MainGame();
+        //MainGame.fastIntro = true;
         mainGame.startGame();
     }
 }
