@@ -41,7 +41,7 @@ public class MainGame {
     public boolean isGamePaused = false;
     public long vg;
     public Font font;
-    private long window;
+    public long window;
     private boolean showFPS = false;
     public static float deltaTime;
     public static MainGame instance;
