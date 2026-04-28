@@ -126,12 +126,28 @@ public class RenderUtils {
         NanoVG.nvgFill(vg);
     }
 
+    public static void drawGlassRoundedRect(long vg, float x, float y, float x2, float y2, float radius, boolean border) {
+        drawGlassRoundedRect(vg, x, y, x2, y2, radius, new Color(255, 255, 255, 36), 12f, border);
+    }
+
+    public static void drawGlassRoundedRect(long vg, float x, float y, float x2, float y2, float radius, Color tint, float blurStrength, boolean border) {
+        drawGlassRectInternal(vg, x, y, x2, y2, radius, true, tint, blurStrength, border);
+    }
+
+    public static void drawGlassRect(long vg, float x, float y, float x2, float y2,boolean border) {
+        drawGlassRect(vg, x, y, x2, y2, new Color(255, 255, 255, 36), 12f, border);
+    }
+
+    public static void drawGlassRect(long vg, float x, float y, float x2, float y2, Color tint, float blurStrength, boolean border) {
+        drawGlassRectInternal(vg, x, y, x2, y2, 0f, false, tint, blurStrength,border);
+    }
+
     public static void drawGlassRoundedRect(long vg, float x, float y, float x2, float y2, float radius) {
         drawGlassRoundedRect(vg, x, y, x2, y2, radius, new Color(255, 255, 255, 36), 12f);
     }
 
     public static void drawGlassRoundedRect(long vg, float x, float y, float x2, float y2, float radius, Color tint, float blurStrength) {
-        drawGlassRectInternal(vg, x, y, x2, y2, radius, true, tint, blurStrength);
+        drawGlassRectInternal(vg, x, y, x2, y2, radius, true, tint, blurStrength,false);
     }
 
     public static void drawGlassRect(long vg, float x, float y, float x2, float y2) {
@@ -139,10 +155,10 @@ public class RenderUtils {
     }
 
     public static void drawGlassRect(long vg, float x, float y, float x2, float y2, Color tint, float blurStrength) {
-        drawGlassRectInternal(vg, x, y, x2, y2, 0f, false, tint, blurStrength);
+        drawGlassRectInternal(vg, x, y, x2, y2, 0f, false, tint, blurStrength, false);
     }
 
-    private static void drawGlassRectInternal(long vg, float x, float y, float x2, float y2, float radius, boolean rounded, Color tint, float blurStrength) {
+    private static void drawGlassRectInternal(long vg, float x, float y, float x2, float y2, float radius, boolean rounded, Color tint, float blurStrength, boolean border) {
         float left = Math.min(x, x2);
         float top = Math.min(y, y2);
         float width = Math.abs(x2 - x);
@@ -180,7 +196,7 @@ public class RenderUtils {
             }
         }
 
-        drawGlassTintAndBorder(vg, left, top, width, height, safeRadius, rounded, tint, true);
+        drawGlassTintAndBorder(vg, left, top, width, height, safeRadius, rounded, tint, border);
     }
 
     private static void drawGlassTintAndBorder(long vg, float left, float top, float width, float height, float radius, boolean rounded, Color tint, boolean withBorder) {
@@ -203,7 +219,7 @@ public class RenderUtils {
             return;
         }
 
-        float borderAlpha = Math.max(0.08f, Math.min(0.35f, tint.getAlpha() / 255f + 0.08f));
+        float borderAlpha = Math.clamp(tint.getAlpha() / 255f + 0.08f, 0.08f, 0.15f);
         NVGColor borderColor = NVGColor.create().r(1f).g(1f).b(1f).a(borderAlpha);
         NanoVG.nvgBeginPath(vg);
         if (rounded) {
