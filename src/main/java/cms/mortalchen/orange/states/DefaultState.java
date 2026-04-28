@@ -87,15 +87,15 @@ public class DefaultState extends GameState {
             float b = BRAND_COLOR.getBlue() / 255f;
 
             // 1. 绘制边框外发光
-            for (int i = 1; i <= 3; i++) {
-                nvgBeginPath(vg);
-                nvgRoundedRect(vg, boxX, boxY, currentBoxW, currentBoxH, currentRadius);
-                // 设置发光层的低透明度
-                nvgRGBAf(r, g, b, 0.15f / i, nvgColor);
-                nvgStrokeColor(vg, nvgColor);
-                nvgStrokeWidth(vg, currentStroke + (i * 8f));
-                nvgStroke(vg);
-            }
+            RenderUtils.startBloom(vg);
+            nvgBeginPath(vg);
+            nvgRoundedRect(vg, boxX, boxY, currentBoxW, currentBoxH, currentRadius);
+
+//            // 设置发光层的低透明度
+//            nvgRGBAf(r, g, b, 0.15f, nvgColor);
+//            nvgStrokeColor(vg, nvgColor);
+//            nvgStrokeWidth(vg, currentStroke + (8f));
+//            nvgStroke(vg);
 
             // 2. 绘制实体边框 (这一步现在绝对会显示了)
             nvgBeginPath(vg);
@@ -105,6 +105,7 @@ public class DefaultState extends GameState {
             nvgStrokeColor(vg, nvgColor);
             nvgStrokeWidth(vg, currentStroke);
             nvgStroke(vg);
+            RenderUtils.stopBloom(vg);
         }
 
         // --- 绘制内部文字 ---
@@ -170,14 +171,14 @@ public class DefaultState extends GameState {
         // --- 阶段 3：画面定格后，整体冲向镜头并淡出转场 ---
         if (timer.hasReached(2600) && !phase3Triggered) {
             // 全局放大到 5 倍 (500)
-            globalScale.to(500f, 800, Motion.Easing.EXPO_IN);
+            globalScale.to(800f, 400, Motion.Easing.EXPO_IN);
             // 稍加延迟后淡出，制造 "冲破 Logo 进入画面" 的沉浸感
-            globalAlpha.to(0f, 700, Motion.Easing.CUBIC_IN);
+            globalAlpha.to(0f, 500, Motion.Easing.CUBIC_IN);
             phase3Triggered = true;
         }
 
         // 结束动画
-        if (timer.hasReached(3400) && !isStartedUp) {
+        if (timer.hasReached(3600) && !isStartedUp) {
             MainGame.startMainGame.run();
             isStartedUp = true;
         }

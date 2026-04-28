@@ -20,6 +20,14 @@ public abstract class GameState {
      */
     public abstract void render(long vg);
 
+    public void renderBloom(long vg) {
+
+    }
+
+    public boolean useDedicatedBloomPass() {
+        return false;
+    }
+
     /**
      * 游戏刻更新
      * 每秒钟更新30tick

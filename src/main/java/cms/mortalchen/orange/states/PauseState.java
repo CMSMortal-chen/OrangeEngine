@@ -43,7 +43,9 @@ public class PauseState extends GameState {
 
     @Override
     public void render(long vg) {
-        RenderUtils.drawRect(game.vg,0,0, WINDOW_WIDTH, WINDOW_HEIGHT, new Color(0,0,0,200));
+        //RenderUtils.drawGlassRect(game.vg, 0, 0, WINDOW_WIDTH, WINDOW_HEIGHT, new Color(255, 255, 255, 24), 14f);
+
+        RenderUtils.drawRect(game.vg,0,0, WINDOW_WIDTH, WINDOW_HEIGHT, new Color(0,0,0,120));
         game.font.drawText("Pause Menu", NVG_ALIGN_LEFT | NVG_ALIGN_BASELINE, 40f, height / 2f - 200f, 50, Color.WHITE);
         FontManager.geometos.drawText(OrangeEngine.engineName.split(" ")[0], NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM, width - 19f, height - 30f, 35, new Color(255,255,255));
         FontManager.geometos.drawText(OrangeEngine.engineName.split(" ")[1], NVG_ALIGN_RIGHT | NVG_ALIGN_BOTTOM, width - 20f, height - 10f, 25, new Color(255,255,255));

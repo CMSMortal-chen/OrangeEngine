@@ -11,6 +11,7 @@ import cms.mortalchen.orange.input.InputManager;
 import cms.mortalchen.orange.render.FPS;
 import cms.mortalchen.orange.utils.Utils;
 import cms.mortalchen.orange.utils.render.RenderUtils;
+import cms.mortalchen.orange.utils.render.postprocess.PostProcessPipeline;
 import lombok.SneakyThrows;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -50,6 +51,12 @@ public class MainGame {
     public static boolean fastIntro = false;
     public PauseState pauseState = new PauseState(this);
     public boolean exiting = false;
+    public PostProcessPipeline postProcessPipeline;
+
+    public boolean bloomEnabled = true;
+    public boolean glassBlurEnabled = true;
+    public float bloomIntensity = 0.9f;
+    public int bloomPasses = 10;
 
     public static Runnable startMainGame = () -> {};
 
@@ -174,6 +181,9 @@ public class MainGame {
 
     private void renderGame() {
         prepareRendering();
+        RenderUtils.setNanoVGFrameSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+        RenderUtils.setGlassBlurEnabled(glassBlurEnabled);
+        postProcessPipeline.beginScene(WINDOW_WIDTH, WINDOW_HEIGHT);
         nvgBeginFrame(vg, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f);
         RenderUtils.drawRect(vg,-10,-10,WINDOW_WIDTH + 10, WINDOW_HEIGHT + 10, Color.BLACK);
         nvgEndFrame(vg);
@@ -181,6 +191,30 @@ public class MainGame {
         nvgBeginFrame(vg, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f);
         currentState.render(vg);
         nvgEndFrame(vg);
+
+        boolean scopedBloomRequested = RenderUtils.consumeBloomScopeRequestedThisFrame();
+        boolean shouldRenderBloomSource = RenderUtils.shouldRenderBloomSource(
+                bloomEnabled,
+                currentState.useDedicatedBloomPass(),
+                scopedBloomRequested
+        );
+
+        if (shouldRenderBloomSource) {
+            postProcessPipeline.beginBloomSource();
+            nvgBeginFrame(vg, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f);
+            if (currentState.useDedicatedBloomPass()) {
+                currentState.renderBloom(vg);
+            } else {
+                RenderUtils.beginBloomCapturePass(vg);
+                currentState.render(vg);
+                RenderUtils.endBloomCapturePass(vg);
+            }
+            nvgEndFrame(vg);
+        }
+
+        postProcessPipeline.setBloomEnabled(bloomEnabled);
+        postProcessPipeline.setBloomParams(bloomIntensity, bloomPasses);
+        postProcessPipeline.compositeToScreen();
 
         nvgBeginFrame(vg, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f);
 
@@ -257,6 +291,7 @@ public class MainGame {
 
             if (engine.inputManager.isKeyPressed(GLFW_KEY_L))
                 showFPS = !showFPS;
+
         });
 
         glfwSetCharCallback(window, (window, codepoint) -> {
@@ -284,8 +319,11 @@ public class MainGame {
     private void cleanup() {
         logger.info("Cleaning up...");
         glfwFreeCallbacks(window);
-        glfwDestroyWindow(window);
+        if (postProcessPipeline != null) {
+            postProcessPipeline.cleanup(vg);
+        }
         nvgDelete(vg);
+        glfwDestroyWindow(window);
         glfwTerminate();
         logger.info("Cleaned up");
     }
@@ -299,6 +337,9 @@ public class MainGame {
         font = FontManager.hmSans_CHS;
         engine.inputManager = new InputManager(window);
         engine.fpsCounter = new FPS(0.35f);
+        postProcessPipeline = new PostProcessPipeline();
+        postProcessPipeline.initialize();
+        RenderUtils.setPostProcessPipeline(postProcessPipeline);
         logger.info("Game initialized");
     }
 
