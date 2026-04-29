@@ -60,6 +60,10 @@ public abstract class GameState {
 
     }
 
+    public void onKeyPressed(int key, int scancode, int action, int mods) {
+        onKeyPressed(key, action);
+    }
+
     /**
      * 字符输入
      * @param codepoint 字符的Unicode码点

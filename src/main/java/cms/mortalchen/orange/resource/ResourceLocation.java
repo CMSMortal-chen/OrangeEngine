@@ -12,4 +12,16 @@ public final class ResourceLocation {
     public ResourceLocation(String path) {
         this.path = path;
     }
+
+    public String getPath() {
+        return path;
+    }
+
+    public int getId() {
+        return id;
+    }
+
+    public void setId(int id) {
+        this.id = id;
+    }
 }

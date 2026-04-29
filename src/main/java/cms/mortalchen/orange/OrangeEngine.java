@@ -6,10 +6,14 @@ import cms.mortalchen.orange.render.font.FontManager;
 import cms.mortalchen.orange.resource.ResourceManager;
 import cms.mortalchen.orange.utils.SyncTimer;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.Properties;
+
 public class OrangeEngine {
     public static final String name = "Orange";
     public static final String engineName = "Orange Engine";
-    public static final String version = "ver0.11";
+    public static final String version;
     public InputManager inputManager;
     public static FontManager fontManager;
     public static ResourceManager resourceManager;
@@ -22,5 +26,18 @@ public class OrangeEngine {
     public OrangeEngine(){
         instance = this;
     }
+    static {
+        String versionRead = "";
+        Properties props = new Properties();
+        try (InputStream in = OrangeEngine.class.getResourceAsStream("version.properties")) {
+            props.load(in);
+        } catch (IOException e) {
+            versionRead = "DEV";
+        }
+        if (!versionRead.equals("DEV")){
+            versionRead = props.getProperty("version");
+        }
 
+        version = versionRead;
+    }
 }

@@ -12,6 +12,7 @@ import cms.mortalchen.orange.render.FPS;
 import cms.mortalchen.orange.utils.Utils;
 import cms.mortalchen.orange.utils.render.RenderUtils;
 import cms.mortalchen.orange.utils.render.postprocess.PostProcessPipeline;
+import cms.mortalchen.orange.ultralight.UltraLightRuntime;
 import lombok.SneakyThrows;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -188,6 +189,8 @@ public class MainGame {
         RenderUtils.drawRect(vg,-10,-10,WINDOW_WIDTH + 10, WINDOW_HEIGHT + 10, Color.BLACK);
         nvgEndFrame(vg);
 
+        UltraLightRuntime.updateAndRenderActive();
+
         nvgBeginFrame(vg, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f);
         currentState.render(vg);
         nvgEndFrame(vg);
@@ -275,6 +278,22 @@ public class MainGame {
                 currentState.onMouseClick(button, action,OrangeEngine.instance.inputManager.getMousePos());
             }
         });
+
+        glfwSetCursorPosCallback(window, (window, xpos, ypos) -> {
+            if (isGamePaused) {
+                pauseState.onMouseMove(xpos, ypos);
+            } else {
+                currentState.onMouseMove(xpos, ypos);
+            }
+        });
+
+        glfwSetScrollCallback(window, (window, xoffset, yoffset) -> {
+            if (isGamePaused) {
+                pauseState.onMouseScroll(xoffset, yoffset);
+            } else {
+                currentState.onMouseScroll(xoffset, yoffset);
+            }
+        });
         
         glfwSetKeyCallback(window, (window, key, scancode, action, mods) -> {
             if (engine.inputManager.isKeyPressed(GLFW_KEY_ESCAPE)) {
@@ -284,9 +303,9 @@ public class MainGame {
             }
 
             if (isGamePaused) {
-                pauseState.onKeyPressed(key, action);
+                pauseState.onKeyPressed(key, scancode, action, mods);
             }else {
-                currentState.onKeyPressed(key, action);
+                currentState.onKeyPressed(key, scancode, action, mods);
             }
 
             if (engine.inputManager.isKeyPressed(GLFW_KEY_L))
@@ -322,6 +341,7 @@ public class MainGame {
         if (postProcessPipeline != null) {
             postProcessPipeline.cleanup(vg);
         }
+        UltraLightRuntime.cleanupActive();
         nvgDelete(vg);
         glfwDestroyWindow(window);
         glfwTerminate();

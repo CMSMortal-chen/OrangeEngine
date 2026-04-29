@@ -33,7 +33,7 @@ public class Font {
     }
 
     public void loadFont() {
-        String fontFilePath = "textures/fonts/" + fontName + "." + fontFormat;
+        String fontFilePath = "fonts/" + fontName + "." + fontFormat;
         try (InputStream inputStream = Font.class.getClassLoader().getResourceAsStream(fontFilePath)) {
             assert inputStream != null : "Error: Could not open file for font: '" + fontName + "'";
             byte[] fontData = inputStream.readAllBytes();
