@@ -15,6 +15,24 @@ repositories {
     maven { url 'https://jitpack.io' }
 }
 
+sourceSets {
+    main {
+        java {
+            srcDir 'libs/java-cef-src'
+            exclude 'tests/**'
+        }
+    }
+}
+
+// Build java-cef.jar from locally compiled classes
+task buildJavaCefJar(type: Jar) {
+    archiveFileName = 'java-cef.jar'
+    destinationDirectory = file('libs')
+    from(sourceSets.main.output) {
+        include 'org/cef/**'
+    }
+}
+
 processResources {
     filesMatching('**/version.properties') {
         expand(project.properties)
@@ -55,8 +73,6 @@ dependencies {
 // https://mvnrepository.com/artifact/com.alibaba.fastjson2/fastjson2
     implementation 'com.alibaba.fastjson2:fastjson2:2.0.61'
     implementation 'org.mariadb.jdbc:mariadb-java-client:2.7.3'
-    implementation fileTree(dir: 'libs/ultralight', include: ['ultralight-java-reborn-core-*.jar'])
-    runtimeOnly fileTree(dir: 'libs/ultralight', include: ['ultralight-java-reborn-platform-jni-*.jar'])
     implementation 'org.projectlombok:lombok:1.18.42'
     annotationProcessor 'org.projectlombok:lombok:1.18.42'
     runtimeOnly "org.lwjgl:lwjgl::$lwjglNatives"

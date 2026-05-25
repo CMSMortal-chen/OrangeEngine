@@ -2,10 +2,10 @@
 <Configuration status="WARN">
     <Appenders>
         <Console name="SysOut" target="SYSTEM_OUT">
-            <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level]: %msg%n" />
+            <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level]: %msg%xEx%n" />
         </Console>
         <RollingRandomAccessFile name="File" fileName="logs/latest.log" filePattern="logs/%d{yyyy-MM-dd}-%i.log.gz">
-            <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level]: %msg%n" />
+            <PatternLayout pattern="[%d{HH:mm:ss}] [%t/%level]: %msg%xEx%n" />
             <Policies>
                 <TimeBasedTriggeringPolicy />
                 <OnStartupTriggeringPolicy />
@@ -13,9 +13,15 @@
         </RollingRandomAccessFile>
     </Appenders>
     <Loggers>
+        <Logger name="STDOUT" level="info" additivity="false">
+            <AppenderRef ref="SysOut" />
+            <AppenderRef ref="File" />
+        </Logger>
+        <Logger name="STDERR" level="info" additivity="false">
+            <AppenderRef ref="SysOut" />
+            <AppenderRef ref="File" />
+        </Logger>
         <Root level="info">
-            <filters>
-            </filters>
             <AppenderRef ref="SysOut"/>
             <AppenderRef ref="File"/>
         </Root>

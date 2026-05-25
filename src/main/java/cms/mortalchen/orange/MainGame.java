@@ -12,7 +12,7 @@ import cms.mortalchen.orange.render.FPS;
 import cms.mortalchen.orange.utils.Utils;
 import cms.mortalchen.orange.utils.render.RenderUtils;
 import cms.mortalchen.orange.utils.render.postprocess.PostProcessPipeline;
-import cms.mortalchen.orange.ultralight.UltraLightRuntime;
+import cms.mortalchen.orange.oralightcef.OraLightCEFRuntime;
 import lombok.SneakyThrows;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -119,6 +119,9 @@ public class MainGame {
 
     private void initGame() {
         try {
+            // Initialize JCEF/AWT BEFORE GLFW so AWT gets a valid Win32 GraphicsDevice
+            OraLightCEFRuntime.initialize();
+
             GLFWErrorCallback.createPrint(System.err).set();
             if (!glfwInit()) {
                 throw new IllegalStateException("Unable to initialize GLFW");
@@ -189,7 +192,7 @@ public class MainGame {
         RenderUtils.drawRect(vg,-10,-10,WINDOW_WIDTH + 10, WINDOW_HEIGHT + 10, Color.BLACK);
         nvgEndFrame(vg);
 
-        UltraLightRuntime.updateAndRenderActive();
+        OraLightCEFRuntime.doMessageLoopWork();
 
         nvgBeginFrame(vg, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f);
         currentState.render(vg);
@@ -341,7 +344,7 @@ public class MainGame {
         if (postProcessPipeline != null) {
             postProcessPipeline.cleanup(vg);
         }
-        UltraLightRuntime.cleanupActive();
+        OraLightCEFRuntime.cleanup();
         nvgDelete(vg);
         glfwDestroyWindow(window);
         glfwTerminate();

@@ -3,6 +3,9 @@ build/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
+/libs/jcef/
+/libs/jcef-native.zip
+/src/main/resources/jcef-native.zip
 
 ### IntelliJ IDEA ###
 .idea/modules.xml

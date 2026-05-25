@@ -1,14 +1,14 @@
 package cms.mortalchen.orange.test;
 
 import cms.mortalchen.orange.MainGame;
-import cms.mortalchen.orange.states.UltralightTestState;
+import cms.mortalchen.orange.states.OraLightCEFTestState;
 
 public class Main {
     public static void main(String[] args) {
         //MainGame.introEnable = false;
         MainGame.startMainGame = () -> {
             if (MainGame.instance != null) {
-                MainGame.instance.changeState(new UltralightTestState(MainGame.instance));
+                MainGame.instance.changeState(new OraLightCEFTestState(MainGame.instance));
             }
         };
 
