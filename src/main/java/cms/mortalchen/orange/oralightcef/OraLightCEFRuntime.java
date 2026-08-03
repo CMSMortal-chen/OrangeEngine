@@ -67,9 +67,13 @@ public final class OraLightCEFRuntime {
             return;
         }
 
-        // Try classpath first (bundled in JAR)
-        InputStream zipStream = OraLightCEFRuntime.class.getClassLoader()
-                .getResourceAsStream("jcef-native.zip");
+        // Try classpath first (bundled in JAR — single zip or chunks)
+        ClassLoader cl = OraLightCEFRuntime.class.getClassLoader();
+        InputStream zipStream = cl.getResourceAsStream("jcef-native.zip");
+        if (zipStream == null) {
+            // Try reassemble from classpath chunks
+            zipStream = reassembleClasspathChunks(cl, "jcef-native.zip");
+        }
         if (zipStream != null) {
             LOGGER.info("Extracting native runtime from JAR to {} ...", jcefDir);
             extractZip(zipStream, jcefDir);
@@ -77,10 +81,33 @@ public final class OraLightCEFRuntime {
             return;
         }
 
-        // Try local disk
+        // Try local disk (single zip)
         File diskZip = new File("libs/jcef-native.zip");
         if (diskZip.exists()) {
             LOGGER.info("Extracting native runtime from {} to {} ...", diskZip, jcefDir);
+            try (InputStream fis = new BufferedInputStream(new FileInputStream(diskZip))) {
+                extractZip(fis, jcefDir);
+            }
+            System.setProperty("jcef.path", jcefDir.getAbsolutePath());
+            return;
+        }
+
+        // Try reassemble from disk chunks (jcef-native.zip.part001, .part002, ...)
+        File chunksDir = new File("libs");
+        File[] chunkFiles = chunksDir.listFiles((dir, name) -> name.startsWith("jcef-native.zip.part"));
+        if (chunkFiles != null && chunkFiles.length > 0) {
+            java.util.Arrays.sort(chunkFiles);
+            LOGGER.info("Reassembling {} chunks into {} ...", chunkFiles.length, diskZip);
+            try (FileOutputStream fos = new FileOutputStream(diskZip)) {
+                for (File chunk : chunkFiles) {
+                    try (FileInputStream fis = new FileInputStream(chunk)) {
+                        byte[] buf = new byte[8192];
+                        int n;
+                        while ((n = fis.read(buf)) > 0) fos.write(buf, 0, n);
+                    }
+                }
+            }
+            LOGGER.info("Reassembly complete ({} MB)", diskZip.length() / (1024 * 1024));
             try (InputStream fis = new BufferedInputStream(new FileInputStream(diskZip))) {
                 extractZip(fis, jcefDir);
             }
@@ -92,9 +119,8 @@ public final class OraLightCEFRuntime {
         jcefDir.mkdirs();
         String msg = "\n========================================\n"
                 + "JCEF native runtime not found!\n"
-                + "Please download jcef-native.zip and place it in:\n"
+                + "Place jcef-native.zip (or .part chunks) in:\n"
                 + "  " + jcefDir.getAbsoluteFile().getParent() + "\n"
-                + "File should be named: jcef-native.zip\n"
                 + "========================================\n";
         LOGGER.error(msg);
         System.err.println(msg);
@@ -121,6 +147,31 @@ public final class OraLightCEFRuntime {
             }
         }
         LOGGER.info("Native extraction complete");
+    }
+
+    private static InputStream reassembleClasspathChunks(ClassLoader cl, String baseName) throws IOException {
+        java.util.List<byte[]> chunks = new java.util.ArrayList<>();
+        int partNum = 0;
+        while (true) {
+            partNum++;
+            String partName = baseName + ".part" + String.format("%03d", partNum);
+            InputStream partStream = cl.getResourceAsStream(partName);
+            if (partStream == null) break;
+            chunks.add(partStream.readAllBytes());
+            partStream.close();
+        }
+        if (chunks.isEmpty()) return null;
+
+        LOGGER.info("Reassembled {} classpath chunks for {}", chunks.size(), baseName);
+        int totalSize = 0;
+        for (byte[] c : chunks) totalSize += c.length;
+        byte[] combined = new byte[totalSize];
+        int offset = 0;
+        for (byte[] c : chunks) {
+            System.arraycopy(c, 0, combined, offset, c.length);
+            offset += c.length;
+        }
+        return new java.io.ByteArrayInputStream(combined);
     }
 
     static synchronized CefApp app() {
