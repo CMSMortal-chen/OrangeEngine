@@ -272,10 +272,29 @@ public class RenderUtils {
                 .b(color.getBlue() / 255f)
                 .a(color.getAlpha() / 255f);
 
+        float left = Math.min(x, x2);
+        float top = Math.min(y, y2);
+        float w = Math.max(x, x2) - left;
+        float h = Math.max(y, y2) - top;
+
+        // 细线（宽或高 < 2px）：对齐到整数像素并临时关闭抗锯齿，
+        // 避免半像素坐标下 nvgFill 的边缘羽化（1px 线出现浮雕感/端点亮边）
+        boolean thin = w < 2f || h < 2f;
+        if (thin) {
+            NanoVG.nvgSave(vg);
+            NanoVG.nvgShapeAntiAlias(vg, false);
+            left = Math.round(left);
+            top = Math.round(top);
+            if (w < 2f) w = Math.max(1f, Math.round(w));
+            if (h < 2f) h = Math.max(1f, Math.round(h));
+        }
         NanoVG.nvgBeginPath(vg);
-        NanoVG.nvgRect(vg, x, y, (Math.max(x, x2) - Math.min(x, x2)), (Math.max(y, y2) - Math.min(y, y2)));
+        NanoVG.nvgRect(vg, left, top, w, h);
         NanoVG.nvgFillColor(vg, nvgColor);
         NanoVG.nvgFill(vg);
+        if (thin) {
+            NanoVG.nvgRestore(vg);
+        }
     }
 
     public static void drawRect(long vg, double x, double y, double x2, double y2, Color color) {
@@ -285,10 +304,28 @@ public class RenderUtils {
                 .b(color.getBlue() / 255f)
                 .a(color.getAlpha() / 255f);
 
+        float left = (float) Math.min(x, x2);
+        float top = (float) Math.min(y, y2);
+        float w = (float) (Math.max(x, x2) - Math.min(x, x2));
+        float h = (float) (Math.max(y, y2) - Math.min(y, y2));
+
+        // 细线（宽或高 < 2px）：对齐到整数像素并临时关闭抗锯齿
+        boolean thin = w < 2f || h < 2f;
+        if (thin) {
+            NanoVG.nvgSave(vg);
+            NanoVG.nvgShapeAntiAlias(vg, false);
+            left = Math.round(left);
+            top = Math.round(top);
+            if (w < 2f) w = Math.max(1f, Math.round(w));
+            if (h < 2f) h = Math.max(1f, Math.round(h));
+        }
         NanoVG.nvgBeginPath(vg);
-        NanoVG.nvgRect(vg, (float) x, (float) y, (float) (Math.max(x, x2) - Math.min(x, x2)), (float) (Math.max(y, y2) - Math.min(y, y2)));
+        NanoVG.nvgRect(vg, left, top, w, h);
         NanoVG.nvgFillColor(vg, nvgColor);
         NanoVG.nvgFill(vg);
+        if (thin) {
+            NanoVG.nvgRestore(vg);
+        }
     }
 
     public static void drawGradientSideWay(long vg, float x, float y, float x2, float y2, Color color,Color colorTo) {
