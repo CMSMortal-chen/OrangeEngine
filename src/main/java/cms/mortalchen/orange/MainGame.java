@@ -1,5 +1,6 @@
 package cms.mortalchen.orange;
 
+import cms.mortalchen.orange.audio.AudioManager;
 import cms.mortalchen.orange.resource.ResourceManager;
 import cms.mortalchen.orange.states.GameState;
 import cms.mortalchen.orange.states.DefaultState;
@@ -357,6 +358,7 @@ public class MainGame {
 
         OrangeEngine.resourceManager = new ResourceManager(vg);
         OrangeEngine.fontManager = new FontManager(vg);
+        OrangeEngine.audioManager = AudioManager.getInstance();
         font = FontManager.hmSans_CHS;
         engine.inputManager = new InputManager(window);
         engine.fpsCounter = new FPS(0.35f);

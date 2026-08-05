@@ -1,5 +1,6 @@
 package cms.mortalchen.orange;
 
+import cms.mortalchen.orange.audio.AudioManager;
 import cms.mortalchen.orange.input.InputManager;
 import cms.mortalchen.orange.render.FPS;
 import cms.mortalchen.orange.render.font.FontManager;
@@ -17,6 +18,7 @@ public class OrangeEngine {
     public InputManager inputManager;
     public static FontManager fontManager;
     public static ResourceManager resourceManager;
+    public static AudioManager audioManager;
     public FPS fpsCounter;
     public SyncTimer syncTimer = new SyncTimer(SyncTimer.JAVA_NANO);
     public static long deltaTimeMills = 0;
