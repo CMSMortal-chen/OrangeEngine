@@ -22,8 +22,14 @@ import org.lwjgl.glfw.GLFWImage;
 import org.lwjgl.glfw.GLFWWindowSizeCallback;
 import org.lwjgl.opengl.GL;
 
+import javax.management.NotificationEmitter;
+
 import javax.swing.*;
 import java.awt.*;
+import java.lang.management.GarbageCollectorMXBean;
+import java.lang.management.ManagementFactory;
+
+import com.sun.management.GcInfo;
 
 import static cms.mortalchen.orange.utils.Utils.loadImage;
 import static org.lwjgl.glfw.Callbacks.glfwFreeCallbacks;
@@ -365,7 +371,22 @@ public class MainGame {
         postProcessPipeline = new PostProcessPipeline();
         postProcessPipeline.initialize();
         RenderUtils.setPostProcessPipeline(postProcessPipeline);
+        watchGc();
         logger.info("Game initialized");
+    }
+
+    /** 注册 GC 完成监听：每次内存回收后弹出一条 WARN（观察回收停顿/频率，配合掉帧排查） */
+    private void watchGc() {
+        for (GarbageCollectorMXBean bean : ManagementFactory.getGarbageCollectorMXBeans()) {
+            NotificationEmitter emitter = (NotificationEmitter) bean;
+            emitter.addNotificationListener((notif, handback) -> {
+                if (!(notif.getUserData() instanceof GcInfo gc)) return;
+                Runtime rt = Runtime.getRuntime();
+                long usedMb = (rt.totalMemory() - rt.freeMemory()) / (1024 * 1024);
+                long totalMb = rt.totalMemory() / (1024 * 1024);
+                logger.warn("GC [{}] 完成：暂停 {}ms，堆 {}/{}MB", bean.getName(), gc.getDuration(), usedMb, totalMb);
+            }, null, null);
+        }
     }
 
     public void changeState(GameState nextState) {

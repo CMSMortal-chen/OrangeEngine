@@ -20,6 +20,11 @@ public class RenderUtils {
     private static boolean bloomScopeRequestedThisFrame = false;
     private static boolean glassBlurEnabled = true;
 
+    /** 渲染线程可复用的结构体：避免每帧数十万个直接缓冲区（DirectByteBuffer）分配导致的 GC 停顿 */
+    private static final ThreadLocal<NVGColor> COLOR_A = ThreadLocal.withInitial(NVGColor::calloc);
+    private static final ThreadLocal<NVGColor> COLOR_B = ThreadLocal.withInitial(NVGColor::calloc);
+    private static final ThreadLocal<NVGPaint> PAINT = ThreadLocal.withInitial(NVGPaint::calloc);
+
     public static final class CoverRect {
         public final float x;
         public final float y;
@@ -99,7 +104,7 @@ public class RenderUtils {
     }
 
     public static void drawLine(long vg, float x1, float y1, float x2, float y2, float width, Color color) {
-        NVGColor nvgColor = NVGColor.create()
+        NVGColor nvgColor = COLOR_A.get()
                 .r(color.getRed() / 255f)
                 .g(color.getGreen() / 255f)
                 .b(color.getBlue() / 255f)
@@ -114,7 +119,7 @@ public class RenderUtils {
     }
 
     public static void drawRoundedRect(long vg, float x, float y, float x2, float y2, float radius, Color color) {
-        NVGColor nvgColor = NVGColor.create()
+        NVGColor nvgColor = COLOR_A.get()
                 .r(color.getRed() / 255f)
                 .g(color.getGreen() / 255f)
                 .b(color.getBlue() / 255f)
@@ -183,7 +188,7 @@ public class RenderUtils {
             nvgBeginFrame(vg, frameWidth, frameHeight, 1.0f);
 
             if (blurImage > 0) {
-                NVGPaint blurPaint = NVGPaint.create();
+                NVGPaint blurPaint = PAINT.get();
                 nvgImagePattern(vg, 0f, 0f, frameWidth, frameHeight, 0f, blurImage, 1f, blurPaint);
                 nvgBeginPath(vg);
                 if (rounded) {
@@ -200,7 +205,7 @@ public class RenderUtils {
     }
 
     private static void drawGlassTintAndBorder(long vg, float left, float top, float width, float height, float radius, boolean rounded, Color tint, boolean withBorder) {
-        NVGColor tintColor = NVGColor.create()
+        NVGColor tintColor = COLOR_A.get()
                 .r(tint.getRed() / 255f)
                 .g(tint.getGreen() / 255f)
                 .b(tint.getBlue() / 255f)
@@ -220,7 +225,7 @@ public class RenderUtils {
         }
 
         float borderAlpha = Math.clamp(tint.getAlpha() / 255f + 0.08f, 0.08f, 0.15f);
-        NVGColor borderColor = NVGColor.create().r(1f).g(1f).b(1f).a(borderAlpha);
+        NVGColor borderColor = COLOR_A.get().r(1f).g(1f).b(1f).a(borderAlpha);
         NanoVG.nvgBeginPath(vg);
         if (rounded) {
             NanoVG.nvgRoundedRect(vg, left + 0.5f, top + 0.5f, Math.max(0f, width - 1f), Math.max(0f, height - 1f), Math.max(0f, radius - 0.5f));
@@ -233,7 +238,7 @@ public class RenderUtils {
     }
 
     public static void drawCircleStroke(long vg,float cx, float cy, float radius, float width,Color color) {
-        NVGColor nvgColor = NVGColor.create()
+        NVGColor nvgColor = COLOR_A.get()
                 .r(color.getRed() / 255f)
                 .g(color.getGreen() / 255f)
                 .b(color.getBlue() / 255f)
@@ -251,7 +256,7 @@ public class RenderUtils {
     }
 
     public static void drawCircle(long vg,float cx, float cy, float radius, Color color) {
-        NVGColor nvgColor = NVGColor.create()
+        NVGColor nvgColor = COLOR_A.get()
                 .r(color.getRed() / 255f)
                 .g(color.getGreen() / 255f)
                 .b(color.getBlue() / 255f)
@@ -266,7 +271,7 @@ public class RenderUtils {
     }
 
     public static void drawRect(long vg, float x, float y, float x2, float y2, Color color) {
-        NVGColor nvgColor = NVGColor.create()
+        NVGColor nvgColor = COLOR_A.get()
                 .r(color.getRed() / 255f)
                 .g(color.getGreen() / 255f)
                 .b(color.getBlue() / 255f)
@@ -298,7 +303,7 @@ public class RenderUtils {
     }
 
     public static void drawRect(long vg, double x, double y, double x2, double y2, Color color) {
-        NVGColor nvgColor = NVGColor.create()
+        NVGColor nvgColor = COLOR_A.get()
                 .r(color.getRed() / 255f)
                 .g(color.getGreen() / 255f)
                 .b(color.getBlue() / 255f)
@@ -329,12 +334,12 @@ public class RenderUtils {
     }
 
     public static void drawGradientSideWay(long vg, float x, float y, float x2, float y2, Color color,Color colorTo) {
-        NVGColor nvgColor = NVGColor.create()
+        NVGColor nvgColor = COLOR_A.get()
                 .r(color.getRed() / 255f)
                 .g(color.getGreen() / 255f)
                 .b(color.getBlue() / 255f)
                 .a(color.getAlpha() / 255f);
-        NVGColor nvgColorTo = NVGColor.create()
+        NVGColor nvgColorTo = COLOR_B.get()
                 .r(colorTo.getRed() / 255f)
                 .g(colorTo.getGreen() / 255f)
                 .b(colorTo.getBlue() / 255f)
@@ -342,7 +347,7 @@ public class RenderUtils {
 
         NanoVG.nvgBeginPath(vg);
         NanoVG.nvgRect(vg, x, y, (Math.max(x, x2) - Math.min(x, x2)), (Math.max(y, y2) - Math.min(y, y2)));
-        NVGPaint paint = NVGPaint.create();
+        NVGPaint paint = PAINT.get();
         NanoVG.nvgLinearGradient(vg, x, y, x2, y, nvgColor, nvgColorTo, paint);
         NanoVG.nvgFillPaint(vg, paint);
         NanoVG.nvgFill(vg);
@@ -350,12 +355,12 @@ public class RenderUtils {
     }
 
     public static void drawGradientUpDown(long vg, float x, float y, float x2, float y2, Color color,Color colorTo) {
-        NVGColor nvgColor = NVGColor.create()
+        NVGColor nvgColor = COLOR_A.get()
                 .r(color.getRed() / 255f)
                 .g(color.getGreen() / 255f)
                 .b(color.getBlue() / 255f)
                 .a(color.getAlpha() / 255f);
-        NVGColor nvgColorTo = NVGColor.create()
+        NVGColor nvgColorTo = COLOR_B.get()
                 .r(colorTo.getRed() / 255f)
                 .g(colorTo.getGreen() / 255f)
                 .b(colorTo.getBlue() / 255f)
@@ -363,7 +368,7 @@ public class RenderUtils {
 
         NanoVG.nvgBeginPath(vg);
         NanoVG.nvgRect(vg, x, y, (Math.max(x, x2) - Math.min(x, x2)), (Math.max(y, y2) - Math.min(y, y2)));
-        NVGPaint paint = NVGPaint.create();
+        NVGPaint paint = PAINT.get();
         NanoVG.nvgLinearGradient(vg, x, y, x, y2, nvgColor, nvgColorTo, paint);
         NanoVG.nvgFillPaint(vg, paint);
         NanoVG.nvgFill(vg);
@@ -371,13 +376,13 @@ public class RenderUtils {
     }
 
     public static NVGColor nvgColor(Color color) {
-        NVGColor nvgColor = NVGColor.create()
+        NVGColor nvgColor = COLOR_A.get()
                 .r(color.getRed() / 255f)
                 .g(color.getGreen() / 255f)
                 .b(color.getBlue() / 255f)
                 .a(color.getAlpha() / 255f);
 
-        return NVGColor.create();
+        return COLOR_A.get();
     }
 
     public static void fillTriangle(
@@ -387,7 +392,7 @@ public class RenderUtils {
             float x3, float y3,
             Color color
     ) {
-        NVGColor nvgColor = NVGColor.create()
+        NVGColor nvgColor = COLOR_A.get()
                 .r(color.getRed() / 255f)
                 .g(color.getGreen() / 255f)
                 .b(color.getBlue() / 255f)
@@ -406,9 +411,9 @@ public class RenderUtils {
 
     public static void drawImage(long nvg, ResourceLocation location, float x, float y, float width, float height, int alpha, Color color) {
         nvgBeginPath(nvg);
-        NVGPaint paint = nvgImagePattern(nvg, x, y, width, height, 0.0F, location.getId(), alpha / 255.0F, NVGPaint.create());
+        NVGPaint paint = nvgImagePattern(nvg, x, y, width, height, 0.0F, location.getId(), alpha / 255.0F, PAINT.get());
 
-        NVGColor nvgColor = NVGColor.create()
+        NVGColor nvgColor = COLOR_A.get()
                 .r(color.getRed() / 255f)
                 .g(color.getGreen() / 255f)
                 .b(color.getBlue() / 255f)
@@ -437,9 +442,9 @@ public class RenderUtils {
         CoverRect coverRect = computeCoverRect(x, y, width, height, imageWidth[0], imageHeight[0]);
 
         nvgBeginPath(nvg);
-        NVGPaint paint = nvgImagePattern(nvg, coverRect.x, coverRect.y, coverRect.width, coverRect.height, 0.0F, location.getId(), alpha / 255.0F, NVGPaint.create());
+        NVGPaint paint = nvgImagePattern(nvg, coverRect.x, coverRect.y, coverRect.width, coverRect.height, 0.0F, location.getId(), alpha / 255.0F, PAINT.get());
 
-        NVGColor nvgColor = NVGColor.create()
+        NVGColor nvgColor = COLOR_A.get()
                 .r(color.getRed() / 255f)
                 .g(color.getGreen() / 255f)
                 .b(color.getBlue() / 255f)
@@ -478,9 +483,9 @@ public class RenderUtils {
 
     public static void drawTileImage(long nvg, ResourceLocation location, float x, float y ,float width, float height, int u, int v, float scales ,float uWidth, float uHeight, int alpha, Color color) {
         nvgBeginPath(nvg);
-        NVGPaint paint = nvgImagePattern(nvg, x - (u * scales), y - (v * scales), width * scales, height * scales, 0.0F, location.getId(), alpha / 255.0F, NVGPaint.create());
+        NVGPaint paint = nvgImagePattern(nvg, x - (u * scales), y - (v * scales), width * scales, height * scales, 0.0F, location.getId(), alpha / 255.0F, PAINT.get());
 
-        NVGColor nvgColor = NVGColor.create()
+        NVGColor nvgColor = COLOR_A.get()
                 .r(color.getRed() / 255f)
                 .g(color.getGreen() / 255f)
                 .b(color.getBlue() / 255f)
@@ -503,7 +508,7 @@ public class RenderUtils {
             float strokeWidth,
             Color color
     ) {
-        NVGColor nvgColor = NVGColor.create()
+        NVGColor nvgColor = COLOR_A.get()
                 .r(color.getRed() / 255f)
                 .g(color.getGreen() / 255f)
                 .b(color.getBlue() / 255f)
