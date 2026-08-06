@@ -20,6 +20,32 @@ public class RenderUtils {
     private static boolean bloomScopeRequestedThisFrame = false;
     private static boolean glassBlurEnabled = true;
 
+    /** 离屏渲染任务（在主帧 beginFrame 之间执行，渲染线程专用，无需并发容器） */
+    private static final java.util.List<Runnable> OFFSCREEN_TASKS = new java.util.ArrayList<>();
+
+    /**
+     * 排队一个离屏渲染任务（如瓦片静态层 framebuffer 重建）。
+     * 任务将在下一帧主帧 beginFrame 之前由 {@link #runOffscreenTasks()} 执行，
+     * 因此任务内可以安全使用 nvgluBindFramebuffer + nvgBeginFrame 渲染到离屏。
+     */
+    public static void scheduleOffscreen(Runnable task) {
+        if (task != null) OFFSCREEN_TASKS.add(task);
+    }
+
+    /** 执行全部离屏任务（由渲染帧循环在 pass 之间调用） */
+    public static void runOffscreenTasks() {
+        if (OFFSCREEN_TASKS.isEmpty()) return;
+        java.util.List<Runnable> tasks = new java.util.ArrayList<>(OFFSCREEN_TASKS);
+        OFFSCREEN_TASKS.clear();
+        for (Runnable task : tasks) {
+            try {
+                task.run();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
     /** 渲染线程可复用的结构体：避免每帧数十万个直接缓冲区（DirectByteBuffer）分配导致的 GC 停顿 */
     private static final ThreadLocal<NVGColor> COLOR_A = ThreadLocal.withInitial(NVGColor::calloc);
     private static final ThreadLocal<NVGColor> COLOR_B = ThreadLocal.withInitial(NVGColor::calloc);

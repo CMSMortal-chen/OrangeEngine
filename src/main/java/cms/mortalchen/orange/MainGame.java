@@ -200,6 +200,7 @@ public class MainGame {
         nvgEndFrame(vg);
 
         OraLightCEFRuntime.doMessageLoopWork();
+        RenderUtils.runOffscreenTasks(); // 离屏渲染任务（如瓦片静态层重建），必须在主帧 beginFrame 之外
 
         nvgBeginFrame(vg, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f);
         currentState.render(vg);
