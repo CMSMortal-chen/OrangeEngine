@@ -26,6 +26,23 @@ public class Image {
         location.setId(resourceManager.loadImage(location.getPath(), flag));
     }
 
+    private Image(ResourceManager resourceManager, ResourceLocation location, boolean preloaded) {
+        this.resourceManager = resourceManager;
+        this.location = location;
+    }
+
+    /**
+     * 由 PNG 编码字节直接创建 Image（不经过 loadImage）：
+     * 用于像素画 CPU 预缩放（最近邻放大到整数像素）后上传，1:1 绘制避免纹理二次缩放过滤。
+     *
+     * @param cacheKey 缓存键（同一 key 复用同一纹理，如 "path@scale"）
+     */
+    public static Image fromPNG(ResourceManager resourceManager, String cacheKey, byte[] pngBytes, int flag) {
+        ResourceLocation location = new ResourceLocation(cacheKey);
+        location.setId(resourceManager.loadImagePNG(cacheKey, pngBytes, flag));
+        return new Image(resourceManager, location, true);
+    }
+
     public void render(float x, float y, float width, float height, Color color) {
         RenderUtils.drawImage(resourceManager.getNvg(), location, x, y, width, height, 255, color);
     }

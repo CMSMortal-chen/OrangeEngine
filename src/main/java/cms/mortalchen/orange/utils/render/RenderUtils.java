@@ -256,6 +256,10 @@ public class RenderUtils {
     }
 
     public static void drawCircle(long vg,float cx, float cy, float radius, Color color) {
+        drawEllipse(vg, cx, cy, radius, radius, color);
+    }
+
+    public static void drawEllipse(long vg, float cx, float cy, float rx, float ry, Color color) {
         NVGColor nvgColor = COLOR_A.get()
                 .r(color.getRed() / 255f)
                 .g(color.getGreen() / 255f)
@@ -264,7 +268,7 @@ public class RenderUtils {
 
         NanoVG.nvgBeginPath(vg);
 
-        NanoVG.nvgCircle(vg, cx, cy, radius);
+        NanoVG.nvgEllipse(vg, cx, cy, rx, ry);
 
         NanoVG.nvgFillColor(vg, nvgColor);
         NanoVG.nvgFill(vg);

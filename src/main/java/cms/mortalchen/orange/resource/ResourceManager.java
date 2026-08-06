@@ -55,6 +55,24 @@ public class ResourceManager implements ILoggerImp {
         return 0;
     }
 
+    /** 由 PNG 编码字节创建图像（预缩放像素画用）；key 为缓存键，命中直接复用纹理 */
+    public int loadImagePNG(String key, byte[] pngBytes, int flag) {
+        Integer cached = loadedImages.get(key);
+        if (cached != null) {
+            return cached;
+        }
+
+        ByteBuffer imageBuffer = ByteBuffer.allocateDirect(pngBytes.length);
+        imageBuffer.put(pngBytes);
+        imageBuffer.flip();
+
+        int imageId = nvgCreateImageMem(nvg, flag, imageBuffer);
+        if (imageId != 0) {
+            loadedImages.put(key, imageId);
+        }
+        return imageId;
+    }
+
     public void deleteImage(int imageId) {
         nvgDeleteImage(nvg, imageId);
     }
