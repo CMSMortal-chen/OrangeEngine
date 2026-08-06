@@ -194,13 +194,13 @@ public class MainGame {
         prepareRendering();
         RenderUtils.setNanoVGFrameSize(WINDOW_WIDTH, WINDOW_HEIGHT);
         RenderUtils.setGlassBlurEnabled(glassBlurEnabled);
+        RenderUtils.runOffscreenTasks(); // 离屏任务（瓦片静态层重建）必须在 beginScene 之前执行，避免破坏 sceneBuffer 的 framebuffer 绑定
         postProcessPipeline.beginScene(WINDOW_WIDTH, WINDOW_HEIGHT);
         nvgBeginFrame(vg, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f);
         RenderUtils.drawRect(vg,-10,-10,WINDOW_WIDTH + 10, WINDOW_HEIGHT + 10, Color.BLACK);
         nvgEndFrame(vg);
 
         OraLightCEFRuntime.doMessageLoopWork();
-        RenderUtils.runOffscreenTasks(); // 离屏渲染任务（如瓦片静态层重建），必须在主帧 beginFrame 之外
 
         nvgBeginFrame(vg, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f);
         currentState.render(vg);
