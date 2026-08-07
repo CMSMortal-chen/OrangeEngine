@@ -1,6 +1,7 @@
 package cms.mortalchen.orange.test;
 
 import cms.mortalchen.orange.MainGame;
+import cms.mortalchen.orange.states.BlurBloomBackgroundTestState;
 import cms.mortalchen.orange.states.OraLightCEFTestState;
 
 public class Main {

@@ -195,6 +195,7 @@ public class MainGame {
         RenderUtils.setNanoVGFrameSize(WINDOW_WIDTH, WINDOW_HEIGHT);
         RenderUtils.setGlassBlurEnabled(glassBlurEnabled);
         RenderUtils.runOffscreenTasks(); // 离屏任务（瓦片静态层重建）必须在 beginScene 之前执行，避免破坏 sceneBuffer 的 framebuffer 绑定
+        if (OrangeEngine.audioManager != null) OrangeEngine.audioManager.updateStreams(); // 流式音频（网页音频）提交 OpenAL
         postProcessPipeline.beginScene(WINDOW_WIDTH, WINDOW_HEIGHT);
         nvgBeginFrame(vg, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f);
         RenderUtils.drawRect(vg,-10,-10,WINDOW_WIDTH + 10, WINDOW_HEIGHT + 10, Color.BLACK);

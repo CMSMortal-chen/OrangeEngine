@@ -4,7 +4,7 @@ plugins {
 }
 
 group = 'cms.mortalchen.orange'
-version = '1.2'
+version = '1.3'
 
 project.ext.jomlVersion = "1.10.8"
 project.ext.lwjglVersion = "3.4.1"

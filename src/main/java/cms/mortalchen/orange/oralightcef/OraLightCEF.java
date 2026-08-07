@@ -2,6 +2,7 @@ package cms.mortalchen.orange.oralightcef;
 
 import cms.mortalchen.orange.MainGame;
 import cms.mortalchen.orange.OrangeEngine;
+import cms.mortalchen.orange.audio.AudioManager;
 import cms.mortalchen.orange.resource.ResourceLocation;
 import cms.mortalchen.orange.utils.render.RenderUtils;
 import cms.mortalchen.orange.utils.render.anim.Motion;
@@ -12,8 +13,11 @@ import org.cef.browser.CefBrowser;
 import org.cef.browser.CefFrame;
 import org.cef.browser.JcefBrowser;
 import org.cef.handler.*;
+import org.cef.misc.CefAudioParameters;
+import org.cef.misc.DataPointer;
 import org.cef.network.CefRequest.TransitionType;
 import org.joml.Vector2f;
+import org.lwjgl.system.MemoryUtil;
 
 import javax.swing.*;
 import java.awt.Color;
@@ -35,6 +39,9 @@ public class OraLightCEF implements AutoCloseable {
     private final CefClient client;
     private final OraLightCEFIpc ipc;
     private final ResourceLocation textureLocation = new ResourceLocation("__jcef_browser__");
+    private final CefAudioSink audioSink = new CefAudioSink();
+    /** 本实例音频流唯一 key（多 CEF 实例不互相覆盖） */
+    private final String audioStreamKey = "__cef_audio_" + System.identityHashCode(this);
 
     private ByteBuffer paintBuffer;
     private final int[] outW = new int[1];
@@ -48,6 +55,8 @@ public class OraLightCEF implements AutoCloseable {
     private float lastMouseX;
     private float lastMouseY;
     private boolean closed;
+    /** 期望加载的 URL：浏览器创建未完成时导航可能丢失（停在 about:blank），onLoadEnd 兜底重试 */
+    private volatile String pendingUrl;
 
     boolean isLoading;
     final AnimatedFloat loadProgress = new AnimatedFloat(0f);
@@ -78,6 +87,7 @@ public class OraLightCEF implements AutoCloseable {
         client.addLoadHandler(new LoadHandler(this, ipc));
         client.addLifeSpanHandler(new LifeSpanHandler(this));
         client.addDisplayHandler(new DisplayHandler(this));
+        client.addAudioHandler(audioSink); // 网页音频传出 → OpenAL 流式播放
 
         CefBrowserSettings settings = new CefBrowserSettings();
         var vidMode = glfwGetVideoMode(glfwGetPrimaryMonitor());
@@ -87,6 +97,7 @@ public class OraLightCEF implements AutoCloseable {
         browser.createImmediately(url);
         // Process creation immediately so browser + URL are ready
         OraLightCEFRuntime.doMessageLoopWork();
+        pendingUrl = url; // 供 onLoadEnd 的 about:blank 兜底重试
         browser.setFocus(true);
         browser.resizeBrowser(Math.max(1, width), Math.max(1, height));
 
@@ -101,10 +112,28 @@ public class OraLightCEF implements AutoCloseable {
                 && !url.startsWith("data:") && !url.startsWith("about:")) {
             url = "https://" + url;
         }
-        String escaped = url.replace("\\", "\\\\").replace("'", "\\'");
-        browser.executeJavaScript(
-                "window.location.href='" + escaped + "';", "", 0);
+        pendingUrl = url;
         browser.loadURL(url);
+    }
+
+    /**
+     * 兜底：浏览器创建与 loadURL 存在时序竞态（createImmediately 是异步的），
+     * 偶发会丢失导航停在 about:blank。主框架加载完成后若仍是 about:blank 且
+     * 有目标 URL 未确认加载，则重新导航。
+     */
+    private void retryIfBlank(CefBrowser b) {
+        String target = pendingUrl;
+        if (target == null || target.startsWith("about:")) return;
+        String cur;
+        try {
+            cur = b.getURL();
+        } catch (Throwable t) {
+            return;
+        }
+        if (cur == null || cur.isEmpty()) return;       // 浏览器尚未创建完成，等下一次回调
+        if (cur.equals("about:blank") || cur.equals("about:")) {
+            b.loadURL(target);
+        }
     }
 
     public void loadHTML(String html) {
@@ -277,6 +306,7 @@ public class OraLightCEF implements AutoCloseable {
     @Override
     public void close() {
         if (closed) return;
+        audioSink.stop(); // 释放本实例音频流（source/buffer）
         if (nvgImage != 0 && MainGame.instance != null) {
             nvgDeleteImage(MainGame.instance.vg, nvgImage);
             nvgImage = 0;
@@ -375,6 +405,94 @@ public class OraLightCEF implements AutoCloseable {
 
     // --- Handlers ---
 
+    /**
+     * 网页音频传出：CEF 离屏渲染无系统音频设备，音频回调（CEF UI 线程）把
+     * float32 交错 PCM 转发给 AudioManager 流式播放（OpenAL 提交在渲染线程）。
+     */
+    private class CefAudioSink implements CefAudioHandler {
+        private AudioManager.AudioStream stream;
+        /** 官方 JCEF 在 onAudioStreamStarted 传 null params，但从 getAudioParameters 可拿到真实采样率 */
+        private volatile int lastSampleRate = 48000;
+
+        @Override
+        public boolean getAudioParameters(CefBrowser browser, CefAudioParameters params) {
+            if (params != null && params.sampleRate > 0) {
+                lastSampleRate = params.sampleRate;
+            }
+            return true; // 接受 CEF 提供的采样率/缓冲配置
+        }
+
+        @Override
+        public void onAudioStreamStarted(CefBrowser browser, CefAudioParameters params, int channels) {
+            AudioManager am = OrangeEngine.audioManager;
+            if (am == null || !am.isAvailable()) return;
+            int rate = lastSampleRate;
+            int ch = Math.max(1, channels);
+            if (stream != null) {
+                am.stopStream(audioStreamKey); // 流重启（loop/seek）时清理旧流
+                stream = null;
+            }
+            stream = am.startStream(audioStreamKey, rate, ch);
+        }
+
+        @Override
+        public void onAudioStreamPacket(CefBrowser browser, DataPointer data, int frames, long pts) {
+            if (stream == null || frames <= 0) return;
+            int channels = stream.channels;
+            // CEF 音频为 planar 布局：data 是指向各通道 float 缓冲的指针数组 (float**)
+            long base = data.getAddress();
+            long[] chPtrs = new long[channels];
+            for (int c = 0; c < channels; c++) {
+                chPtrs[c] = MemoryUtil.memGetAddress(base + c * 8L);
+            }
+            // planar -> interleaved float32（必须小端，OpenAL 期望 LE）
+            ByteBuffer out = ByteBuffer.allocateDirect(frames * channels * 4)
+                    .order(java.nio.ByteOrder.LITTLE_ENDIAN);
+            float peak = 0f;
+            for (int i = 0; i < frames; i++) {
+                for (int c = 0; c < channels; c++) {
+                    float s = MemoryUtil.memGetFloat(chPtrs[c] + i * 4L);
+                    float a = Math.abs(s);
+                    if (a > peak) peak = a;
+                    out.putFloat(s);
+                }
+            }
+            out.flip();
+            // Chromium 输出可能超过 [-1,1]（响处），硬削顶会损失低频/产生失真：
+            // 超范围时整体归一化（保持动态范围，避免削波）
+            if (peak > 1.0f) {
+                float scale = 1.0f / peak;
+                out.rewind();
+                while (out.hasRemaining()) {
+                    out.putFloat(out.getFloat() * scale);
+                }
+                out.flip();
+            }
+            AudioManager am = OrangeEngine.audioManager;
+            if (am != null) {
+                am.streamQueue(stream, out);
+            }
+        }
+
+        @Override
+        public void onAudioStreamStopped(CefBrowser browser) {
+            stop();
+        }
+
+        @Override
+        public void onAudioStreamError(CefBrowser browser, String text) {
+            stop();
+        }
+
+        private void stop() {
+            if (stream != null) {
+                AudioManager am = OrangeEngine.audioManager;
+                if (am != null) am.stopStream(audioStreamKey);
+                stream = null;
+            }
+        }
+    }
+
     private static class LoadHandler extends CefLoadHandlerAdapter {
         private final OraLightCEF ul;
         private final OraLightCEFIpc ipc;
@@ -412,6 +530,7 @@ public class OraLightCEF implements AutoCloseable {
                 ul.isLoading = false;
                 ul.loadProgress.to(1.0f, 300, Motion.Easing.QUAD_OUT);
                 ipc.installJavaScriptBridge();
+                ul.retryIfBlank(browser); // about:blank 兜底重试（创建竞态丢导航）
             }
         }
 
