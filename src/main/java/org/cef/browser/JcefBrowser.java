@@ -216,7 +216,13 @@ public class JcefBrowser extends CefBrowser_N implements CefRenderHandler {
     }
 
     public void injectKeyRelease(int vkCode, char keyChar, int mods) {
-        sendKeyEvent(new CefKeyEvent(CefKeyEvent.KEY_RELEASE, vkCode, keyChar, mods));
+        injectKeyRelease(vkCode, keyChar, mods, 0);
+    }
+
+    public void injectKeyRelease(int vkCode, char keyChar, int mods, int scanCode) {
+        CefKeyEvent ev = new CefKeyEvent(CefKeyEvent.KEY_RELEASE, vkCode, keyChar, mods);
+        ev.scancode = scanCode;
+        sendKeyEvent(ev);
     }
 
     public void injectKeyTyped(char c, int mods) {

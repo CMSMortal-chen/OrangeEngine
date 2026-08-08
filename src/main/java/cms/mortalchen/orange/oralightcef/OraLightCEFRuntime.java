@@ -7,6 +7,7 @@ import org.apache.logging.log4j.Logger;
 
 import java.io.*;
 import java.nio.file.*;
+import java.util.Locale;
 import java.util.zip.ZipInputStream;
 
 public final class OraLightCEFRuntime {
@@ -42,6 +43,7 @@ public final class OraLightCEFRuntime {
 
             CefSettings settings = new CefSettings();
             settings.windowless_rendering_enabled = true;
+            settings.locale = Locale.getDefault().toLanguageTag();
             settings.cache_path =
                     new File(System.getProperty("java.io.tmpdir"), "orange-jcef-cache")
                             .getAbsolutePath();

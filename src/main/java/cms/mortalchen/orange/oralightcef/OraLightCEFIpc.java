@@ -71,6 +71,7 @@ final class OraLightCEFIpc {
                 String channel = msg.getString("channel");
                 String payload = msg.getString("payload", "null");
                 String requestId = msg.getString("id");
+                LOGGER.info("IPC onQuery channel={} payload={}", channel, payload);
                 OraLightCEFBackend handler = handlers.get(channel);
                 String response = null;
 

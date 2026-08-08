@@ -94,6 +94,11 @@ public class OraLightCEF implements AutoCloseable {
         settings.windowless_frame_rate = vidMode != null ? vidMode.refreshRate() : 60;
 
         browser = new JcefBrowser(client, url, transparent, settings);
+        // 必须在 createImmediately 之前 attach：native 创建浏览器时会把
+        // message router 配置塞进 extra_info 传给 renderer 进程，
+        // 晚了的话 renderer 侧没有 CefMessageRouterRendererSide，
+        // window.cefQuery 就不会被挂载，IPC 静默失效。
+        ipc.attach(client, browser);
         browser.createImmediately(url);
         // Process creation immediately so browser + URL are ready
         OraLightCEFRuntime.doMessageLoopWork();
@@ -102,8 +107,6 @@ public class OraLightCEF implements AutoCloseable {
         browser.resizeBrowser(Math.max(1, width), Math.max(1, height));
 
         paintBuffer = ByteBuffer.allocateDirect(width * height * 4);
-
-        ipc.attach(client, browser);
     }
 
     public void loadURL(String url) {
@@ -289,7 +292,7 @@ public class OraLightCEF implements AutoCloseable {
             browser.injectKeyPress(vkCode, '￿', glfwMods, scancode);
         } else {
             char keyChar = mapKeyChar(key, mods);
-            browser.injectKeyRelease(vkCode, keyChar, glfwMods);
+            browser.injectKeyRelease(vkCode, keyChar, glfwMods, scancode);
         }
     }
 
@@ -388,6 +391,22 @@ public class OraLightCEF implements AutoCloseable {
             case GLFW_KEY_GRAVE_ACCENT -> shift ? '~' : '`';
             case GLFW_KEY_ENTER, GLFW_KEY_KP_ENTER -> '\n';
             case GLFW_KEY_TAB -> '\t';
+            case GLFW_KEY_KP_0 -> '0';
+            case GLFW_KEY_KP_1 -> '1';
+            case GLFW_KEY_KP_2 -> '2';
+            case GLFW_KEY_KP_3 -> '3';
+            case GLFW_KEY_KP_4 -> '4';
+            case GLFW_KEY_KP_5 -> '5';
+            case GLFW_KEY_KP_6 -> '6';
+            case GLFW_KEY_KP_7 -> '7';
+            case GLFW_KEY_KP_8 -> '8';
+            case GLFW_KEY_KP_9 -> '9';
+            case GLFW_KEY_KP_DECIMAL -> '.';
+            case GLFW_KEY_KP_ADD -> '+';
+            case GLFW_KEY_KP_SUBTRACT -> '-';
+            case GLFW_KEY_KP_MULTIPLY -> '*';
+            case GLFW_KEY_KP_DIVIDE -> '/';
+            case GLFW_KEY_KP_EQUAL -> '=';
             default -> '￿';
         };
     }
@@ -583,6 +602,13 @@ public class OraLightCEF implements AutoCloseable {
                 ul.isLoading = true;
                 ul.loadProgress.set(0.0f);
                 ul.loadProgress.to(0.70f, 3000, Motion.Easing.SINE_IN_OUT);
+            }
+        }
+
+        @Override
+        public void onTitleChange(CefBrowser browser, String title) {
+            if (title != null && title.startsWith("CODEC:")) {
+                System.out.println("[CODEC] " + title);
             }
         }
     }
