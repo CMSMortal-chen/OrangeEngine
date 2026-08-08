@@ -554,14 +554,22 @@ public class OraLightCEF implements AutoCloseable {
 
         @Override
         public boolean getAudioParameters(CefBrowser browser, CefAudioParameters params) {
+        try {
+
             if (params != null && params.sampleRate > 0) {
                 lastSampleRate = params.sampleRate;
             }
             return true; // 接受 CEF 提供的采样率/缓冲配置
+                } catch (Throwable t) {
+            // CEF 线程回调兜底
+            return false;
         }
+}
 
         @Override
         public void onAudioStreamStarted(CefBrowser browser, CefAudioParameters params, int channels) {
+        try {
+
             AudioManager am = OrangeEngine.audioManager;
             if (am == null || !am.isAvailable()) return;
             int rate = lastSampleRate;
@@ -571,10 +579,15 @@ public class OraLightCEF implements AutoCloseable {
                 stream = null;
             }
             stream = am.startStream(audioStreamKey, rate, ch);
+                } catch (Throwable t) {
+            // CEF 线程回调兜底
         }
+}
 
         @Override
         public void onAudioStreamPacket(CefBrowser browser, DataPointer data, int frames, long pts) {
+        try {
+
             if (stream == null || frames <= 0) return;
             int channels = stream.channels;
             // CEF 音频为 planar 布局：data 是指向各通道 float 缓冲的指针数组 (float**)
@@ -610,17 +623,30 @@ public class OraLightCEF implements AutoCloseable {
             if (am != null) {
                 am.streamQueue(stream, out);
             }
+                } catch (Throwable t) {
+            // CEF 线程回调兜底
         }
+}
 
         @Override
         public void onAudioStreamStopped(CefBrowser browser) {
+        try {
+
             stop();
+                } catch (Throwable t) {
+            // CEF 线程回调兜底
         }
+}
 
         @Override
         public void onAudioStreamError(CefBrowser browser, String text) {
+        try {
+
             stop();
+                } catch (Throwable t) {
+            // CEF 线程回调兜底
         }
+}
 
         private void stop() {
             if (stream != null) {
@@ -643,44 +669,64 @@ public class OraLightCEF implements AutoCloseable {
         @Override
         public void onLoadingStateChange(CefBrowser browser, boolean loading,
                                          boolean canGoBack, boolean canGoForward) {
+        try {
+
             if (loading) {
                 ul.isLoading = true;
                 ul.loadProgress.set(0.10f);
             } else {
                 ul.isLoading = false;
             }
+                } catch (Throwable t) {
+            // CEF 线程回调兜底
         }
+}
 
         @Override
         public void onLoadStart(CefBrowser browser, CefFrame frame,
                                 TransitionType transitionType) {
+        try {
+
             if (frame.isMain()) {
                 ul.isLoading = true;
                 ul.loadProgress.to(0.70f, 3000, Motion.Easing.SINE_IN_OUT);
                 ipc.installJavaScriptBridge();
             }
+                } catch (Throwable t) {
+            // CEF 线程回调兜底
         }
+}
 
         @Override
         public void onLoadEnd(CefBrowser browser, CefFrame frame,
                               int httpStatusCode) {
+        try {
+
             if (frame.isMain()) {
                 ul.isLoading = false;
                 ul.loadProgress.to(1.0f, 300, Motion.Easing.QUAD_OUT);
                 ipc.installJavaScriptBridge();
                 ul.retryIfBlank(browser); // about:blank 兜底重试（创建竞态丢导航）
             }
+                } catch (Throwable t) {
+            // CEF 线程回调兜底
         }
+}
 
         @Override
         public void onLoadError(CefBrowser browser, CefFrame frame,
                                 ErrorCode errorCode, String errorText,
                                 String failedUrl) {
+        try {
+
             if (frame.isMain()) {
                 ul.isLoading = false;
                 ul.loadProgress.to(1.0f, 300, Motion.Easing.QUAD_OUT);
             }
+                } catch (Throwable t) {
+            // CEF 线程回调兜底
         }
+}
     }
 
     private static class LifeSpanHandler extends CefLifeSpanHandlerAdapter {
@@ -717,19 +763,29 @@ public class OraLightCEF implements AutoCloseable {
 
         @Override
         public void onAddressChange(CefBrowser browser, CefFrame frame, String url) {
+        try {
+
             if (frame.isMain()) {
                 ul.isLoading = true;
                 ul.loadProgress.set(0.0f);
                 ul.loadProgress.to(0.70f, 3000, Motion.Easing.SINE_IN_OUT);
             }
+                } catch (Throwable t) {
+            // CEF 线程回调兜底
         }
+}
 
         @Override
         public void onTitleChange(CefBrowser browser, String title) {
+        try {
+
             if (title != null && title.startsWith("CODEC:")) {
                 System.out.println("[CODEC] " + title);
             }
+                } catch (Throwable t) {
+            // CEF 线程回调兜底
         }
+}
     }
 
     @SuppressWarnings("unused")

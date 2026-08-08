@@ -86,13 +86,21 @@ public class JcefBrowser extends CefBrowser_N implements CefRenderHandler {
 
     /**
      * MTML 下 CEF UI 线程是独立线程：CEF 触碰调用必须封送到 UI 线程执行；
-     * 已在 UI 线程则直接执行（避免 postTask 自等待死锁）。
+     * 已在 UI 线程则直接执行（避免 postTask 自等待死锁）。任务异常被吞掉，
+     * 只影响该次调用，不逃逸进 native CEF 触发 JVM fatal。
      */
     private void runOnCefThread(Runnable task) {
+        Runnable guarded = () -> {
+            try {
+                task.run();
+            } catch (Throwable t) {
+                // CEF 线程回调兜底：记录但不让异常污染 JNI 环境
+            }
+        };
         if (CefTaskRunner.isCefThread()) {
-            task.run();
+            guarded.run();
         } else {
-            CefTaskRunner.postTask(() -> task.run(), CefTaskRunner.TID_UI);
+            CefTaskRunner.postTask(() -> guarded.run(), CefTaskRunner.TID_UI);
         }
     }
 
@@ -138,6 +146,15 @@ public class JcefBrowser extends CefBrowser_N implements CefRenderHandler {
     @Override
     public void onPaint(CefBrowser browser, boolean popup, Rectangle[] dirtyRects,
                         ByteBuffer buffer, int width, int height) {
+        try {
+            doPaint(browser, popup, dirtyRects, buffer, width, height);
+        } catch (Throwable t) {
+            // CEF 线程回调兜底：异常不逃逸进 native CEF
+        }
+    }
+
+    private void doPaint(CefBrowser browser, boolean popup, Rectangle[] dirtyRects,
+                         ByteBuffer buffer, int width, int height) {
         if (popup) return;
         int size = width * height * 4;
         synchronized (paintLock) {
@@ -390,9 +407,33 @@ public class JcefBrowser extends CefBrowser_N implements CefRenderHandler {
         runOnCefThread(() -> wasResized(width, height));
     }
 
+    /** 鼠标移动低水位合并：位置是状态而非事件流，队列有任务时只更新最新值，丢弃中间帧 */
+    private final Object mouseCoalesceLock = new Object();
+    private boolean mouseMoveQueued;
+    private int coalesceX;
+    private int coalesceY;
+    private int coalesceMods;
+
     public void injectMouseMove(int x, int y, int mods) {
-        CefMouseEvent ev = new CefMouseEvent(CefMouseEvent.MOUSE_MOVED, x, y, 0, 0, mods);
-        runOnCefThread(() -> sendMouseEvent(ev));
+        synchronized (mouseCoalesceLock) {
+            coalesceX = x;
+            coalesceY = y;
+            coalesceMods = mods;
+            if (mouseMoveQueued) {
+                return; // 已有任务在队列：仅更新最新位置（低水位丢弃）
+            }
+            mouseMoveQueued = true;
+        }
+        runOnCefThread(() -> {
+            int tx, ty, tm;
+            synchronized (mouseCoalesceLock) {
+                mouseMoveQueued = false;
+                tx = coalesceX;
+                ty = coalesceY;
+                tm = coalesceMods;
+            }
+            sendMouseEvent(new CefMouseEvent(CefMouseEvent.MOUSE_MOVED, tx, ty, 0, 0, tm));
+        });
     }
 
     public void injectMouseButton(int x, int y, int mods, int btn, boolean pressed) {
@@ -489,9 +530,22 @@ public class JcefBrowser extends CefBrowser_N implements CefRenderHandler {
 
     @Override
     public void close(boolean force) {
-        runOnCefThread(() -> {
+        // 必须等 CEF 线程完成 N_Close 再释放 AWT 资源（dummyFrame 的 HWND 是
+        // 浏览器父窗口，提前销毁会导致 N_Close 失败/崩溃）
+        if (CefTaskRunner.isCefThread()) {
             try { super.close(force); } catch (Exception ignored) {}
-        });
+        } else {
+            CountDownLatch closeLatch = new CountDownLatch(1);
+            runOnCefThread(() -> {
+                try { super.close(force); } catch (Exception ignored) {}
+                closeLatch.countDown();
+            });
+            try {
+                closeLatch.await(2000, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
         if (dummyFrame != null) {
             try { dummyFrame.dispose(); } catch (Exception ignored) {}
         }
