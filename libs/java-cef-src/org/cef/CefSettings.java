@@ -95,6 +95,13 @@ public class CefSettings {
     public boolean windowless_rendering_enabled = true;
 
     /**
+     * Set to true to run the browser process message loop in a separate thread.
+     * If false (default) the caller must invoke CefDoMessageLoopWork() on the
+     * thread that called CefInitialize() (the game main thread in this engine).
+     */
+    public boolean multi_threaded_message_loop = false;
+
+    /**
      * Set to true to disable configuration of browser process features using
      * standard CEF and Chromium command-line arguments. Configuration can still
      * be specified using CEF data structures or via the
@@ -278,6 +285,7 @@ public class CefSettings {
         tmp.main_bundle_path = main_bundle_path;
         tmp.browser_subprocess_path = browser_subprocess_path;
         tmp.windowless_rendering_enabled = windowless_rendering_enabled;
+        tmp.multi_threaded_message_loop = multi_threaded_message_loop;
         tmp.command_line_args_disabled = command_line_args_disabled;
         tmp.cache_path = cache_path;
         tmp.root_cache_path = root_cache_path;

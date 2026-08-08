@@ -201,8 +201,6 @@ public class MainGame {
         RenderUtils.drawRect(vg,-10,-10,WINDOW_WIDTH + 10, WINDOW_HEIGHT + 10, Color.BLACK);
         nvgEndFrame(vg);
 
-        OraLightCEFRuntime.doMessageLoopWork();
-
         nvgBeginFrame(vg, WINDOW_WIDTH, WINDOW_HEIGHT, 1.0f);
         currentState.render(vg);
         nvgEndFrame(vg);

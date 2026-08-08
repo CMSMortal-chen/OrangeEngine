@@ -43,6 +43,9 @@ public final class OraLightCEFRuntime {
 
             CefSettings settings = new CefSettings();
             settings.windowless_rendering_enabled = true;
+            // CEF 消息循环跑在独立线程：游戏主线程不再被 CEF 周期任务卡顿，
+            // 但所有 CEF 触碰调用必须经 CefTaskRunner 封送到 CEF UI 线程
+            settings.multi_threaded_message_loop = true;
             settings.locale = Locale.getDefault().toLanguageTag();
             settings.cache_path =
                     new File(System.getProperty("java.io.tmpdir"), "orange-jcef-cache")
@@ -181,12 +184,6 @@ public final class OraLightCEFRuntime {
             initialize();
         }
         return cefApp;
-    }
-
-    public static synchronized void doMessageLoopWork() {
-        if (cefApp != null) {
-            cefApp.N_DoMessageLoopWork();
-        }
     }
 
     public static synchronized void cleanup() {

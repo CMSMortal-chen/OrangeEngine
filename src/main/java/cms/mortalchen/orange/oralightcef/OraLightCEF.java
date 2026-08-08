@@ -23,6 +23,7 @@ import javax.swing.*;
 import java.awt.Color;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Base64;
 
 import static org.lwjgl.glfw.GLFW.*;
@@ -31,6 +32,8 @@ import static org.lwjgl.nanovg.NanoVGGL3.nvglCreateImageFromHandle;
 import static org.lwjgl.opengl.GL11.*;
 import static org.lwjgl.opengl.GL12.GL_BGRA;
 import static org.lwjgl.opengl.GL12.GL_CLAMP_TO_EDGE;
+import static org.lwjgl.opengl.GL15.*;
+import static org.lwjgl.opengl.GL30.*;
 
 public class OraLightCEF implements AutoCloseable {
     private static final int NVG_IMAGE_NODELETE = 1 << 16;
@@ -51,6 +54,22 @@ public class OraLightCEF implements AutoCloseable {
     private int textureId;
     private int lastPaintWidth, lastPaintHeight;
     private boolean nvgImageDirty = true;
+
+    /** PBO 双缓冲：CPU 写入 GPU 可见内存，glTexSubImage2D 只排一次异步 DMA，不阻塞渲染线程 */
+    private int[] pboIds;
+    private int pboIndex;
+    private int pboCapacity;
+
+    /** 纹理重建/尺寸变化后首帧必须整帧上传，不能信 CEF 首帧脏区 */
+    private boolean needsFullUpload = true;
+
+    /** peekDirtyStats 输出（避免每帧分配） */
+    private final int[] dirtyCount = new int[1];
+    private final long[] dirtyArea = new long[1];
+    /** 脏区局部上传的暂存缓冲（行连续打包）与每块几何/偏移（[x,y,w,h,off]*n） */
+    private ByteBuffer stagingBuffer;
+    private int stagingCapacity;
+    private final int[] rectData = new int[MAX_DIRTY_RECTS * 5];
 
     private float lastMouseX;
     private float lastMouseY;
@@ -100,8 +119,7 @@ public class OraLightCEF implements AutoCloseable {
         // window.cefQuery 就不会被挂载，IPC 静默失效。
         ipc.attach(client, browser);
         browser.createImmediately(url);
-        // Process creation immediately so browser + URL are ready
-        OraLightCEFRuntime.doMessageLoopWork();
+        // MTML：CEF 消息循环在独立线程，无需（也不应）调用 doMessageLoopWork
         pendingUrl = url; // 供 onLoadEnd 的 about:blank 兜底重试
         browser.setFocus(true);
         browser.resizeBrowser(Math.max(1, width), Math.max(1, height));
@@ -181,12 +199,13 @@ public class OraLightCEF implements AutoCloseable {
     public void render(long vg, float x, float y, float viewWidth, float viewHeight) {
         if (viewWidth <= 0f || viewHeight <= 0f) return;
 
-        // Consume pending paint frame from CEF
-        if (browser.consumeFrame(paintBuffer, outW, outH)) {
+        // Consume pending paint frame from CEF（无新帧时跳过，避免空闲帧的 PBO map/unmap 抖动）
+        if (browser.peekDirtyStats(outW, outH, dirtyCount, dirtyArea)) {
             uploadPaintToTexture(outW[0], outH[0]);
-        } else if (outW[0] > 0 && outH[0] > 0) {
             int needed = outW[0] * outH[0] * 4;
-            paintBuffer = ByteBuffer.allocateDirect(needed);
+            if (paintBuffer == null || paintBuffer.capacity() < needed) {
+                paintBuffer = ByteBuffer.allocateDirect(needed);
+            }
         }
 
         // Recreate NVG image only when needed
@@ -314,6 +333,13 @@ public class OraLightCEF implements AutoCloseable {
             nvgDeleteImage(MainGame.instance.vg, nvgImage);
             nvgImage = 0;
         }
+        if (pboIds != null) {
+            for (int pbo : pboIds) {
+                glDeleteBuffers(pbo);
+            }
+            pboIds = null;
+            pboCapacity = 0;
+        }
         if (browser != null) {
             try {
                 browser.close(true);
@@ -323,6 +349,10 @@ public class OraLightCEF implements AutoCloseable {
     }
 
     // --- Internal ---
+
+    private static final int MAX_DIRTY_RECTS = 16;
+    /** 脏区面积占比超过该值走 PBO 整帧异步上传（碎小 rect 多/大面积时逐块更贵） */
+    private static final float FULL_UPLOAD_AREA_RATIO = 0.25f;
 
     private void uploadPaintToTexture(int width, int height) {
         if (textureId == 0) {
@@ -336,6 +366,8 @@ public class OraLightCEF implements AutoCloseable {
                     GL_BGRA, GL_UNSIGNED_BYTE, 0L);
             lastPaintWidth = width;
             lastPaintHeight = height;
+            needsFullUpload = true;
+            browser.requestFullCopyNextPaint(); // 纹理全新，下一帧必须整帧
         } else if (width != lastPaintWidth || height != lastPaintHeight) {
             // Size changed: recreate GL texture, mark NVG image dirty
             nvgImageDirty = true;
@@ -344,12 +376,99 @@ public class OraLightCEF implements AutoCloseable {
                     GL_BGRA, GL_UNSIGNED_BYTE, 0L);
             lastPaintWidth = width;
             lastPaintHeight = height;
+            needsFullUpload = true;
+            browser.requestFullCopyNextPaint();
         } else {
             glBindTexture(GL_TEXTURE_2D, textureId);
         }
-        paintBuffer.clear();
-        glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
-                GL_BGRA, GL_UNSIGNED_BYTE, paintBuffer);
+
+        // 路径决策：脏区小 → 只拷脏区像素 + 同步局部上传（空闲页/时钟文本等
+        // 周期小重绘，避免整帧 8MB 拷贝）；脏区大/首帧 → PBO 整帧异步上传。
+        int count = dirtyCount[0];
+        long area = dirtyArea[0];
+        boolean useFull = needsFullUpload || count == 0 || count > MAX_DIRTY_RECTS
+                || area > (long) ((long) width * height * FULL_UPLOAD_AREA_RATIO);
+        if (useFull) {
+            uploadFullPbo(width, height);
+        } else {
+            uploadRegions(width, height);
+        }
+    }
+
+    /** PBO 双缓冲整帧异步上传：帧数据直接写入映射内存（单次拷贝），DMA 不阻塞渲染线程 */
+    private void uploadFullPbo(int width, int height) {
+        int needed = width * height * 4;
+        ensurePbo(needed);
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pboIds[pboIndex]);
+        ByteBuffer mapped = glMapBufferRange(GL_PIXEL_UNPACK_BUFFER, 0, needed,
+                GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT);
+        if (mapped != null) {
+            if (browser.consumeFrameTo(mapped, outW, outH)) {
+                glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
+                browser.consumeDirtyRects(); // 整帧已上传，丢弃累积脏区
+                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, outW[0], outH[0],
+                        GL_BGRA, GL_UNSIGNED_BYTE, 0L); // PBO 绑定中，0L = 偏移
+                needsFullUpload = false;
+            } else {
+                // 帧尺寸在 peek 后变大（resize 竞态）：容量不足，本帧放弃，下帧重试
+                glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
+            }
+        } else {
+            // 映射失败兜底：退回同步整帧上传（经 paintBuffer）
+            if (browser.consumeFrame(paintBuffer, outW, outH)) {
+                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height,
+                        GL_BGRA, GL_UNSIGNED_BYTE, paintBuffer);
+                needsFullUpload = false;
+                browser.consumeDirtyRects(); // 已整帧上传，丢弃累积脏区
+            }
+        }
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+        pboIndex ^= 1;
+    }
+
+    /** 脏区局部上传：只拷脏区像素到暂存缓冲，逐块同步上传（小块同步开销可忽略） */
+    private void uploadRegions(int width, int height) {
+        int needed = width * height * 4;
+        if (stagingBuffer == null || stagingCapacity < needed) {
+            stagingBuffer = ByteBuffer.allocateDirect(needed);
+            stagingCapacity = needed;
+        }
+        // rectData 复用时清零：consumeFrameRegions 可能写入更少的块，残留的旧
+        // 条目（w>0）会被误当真实 rect 从暂存缓冲错位读取 → 花屏
+        Arrays.fill(rectData, 0);
+        if (!browser.consumeFrameRegions(stagingBuffer, outW, outH, rectData)) {
+            return; // 竞态后帧/脏区变化，保持 pending，下帧重试
+        }
+        for (int i = 0; i < rectData.length; i += 5) {
+            int x = rectData[i], y = rectData[i + 1];
+            int w = rectData[i + 2], h = rectData[i + 3];
+            if (w <= 0) break; // 结束标记
+            stagingBuffer.position(rectData[i + 4]);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, x, y, w, h,
+                    GL_BGRA, GL_UNSIGNED_BYTE, stagingBuffer);
+        }
+        needsFullUpload = false;
+    }
+
+    private void ensurePbo(int needed) {
+        if (pboIds != null && pboCapacity >= needed) {
+            return;
+        }
+        if (pboIds != null) {
+            for (int pbo : pboIds) {
+                glDeleteBuffers(pbo);
+            }
+        }
+        pboIds = new int[2];
+        pboIds[0] = glGenBuffers();
+        pboIds[1] = glGenBuffers();
+        pboIndex = 0;
+        for (int pbo : pboIds) {
+            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pbo);
+            glBufferData(GL_PIXEL_UNPACK_BUFFER, needed, GL_STREAM_DRAW);
+        }
+        glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
+        pboCapacity = needed;
     }
 
     private int currentModifiers() {
