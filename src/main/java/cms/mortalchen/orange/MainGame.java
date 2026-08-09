@@ -119,10 +119,6 @@ public class MainGame {
                 glfwSwapBuffers(window);
                 glfwPollEvents();
 
-                if (PanicScreen.isActive() && System.currentTimeMillis() > PanicScreen.exitDeadline()) {
-                    System.exit(-1); // Panic 屏展示超时，退出
-                }
-
                 lastTime = currentTime;
                 engine.fpsCounter.update(deltaTime);
 
@@ -250,6 +246,7 @@ public class MainGame {
         }
 
         if (PanicScreen.isActive()) {
+            PanicScreen.update(deltaTime);
             PanicScreen.render(vg, WINDOW_WIDTH, WINDOW_HEIGHT);
         }
 

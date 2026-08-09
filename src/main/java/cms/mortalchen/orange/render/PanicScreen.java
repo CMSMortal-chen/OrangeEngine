@@ -3,9 +3,12 @@ package cms.mortalchen.orange.render;
 import cms.mortalchen.orange.OrangeEngine;
 import cms.mortalchen.orange.render.font.FontManager;
 import cms.mortalchen.orange.utils.render.RenderUtils;
+import cms.mortalchen.orange.utils.render.anim.Motion;
+import cms.mortalchen.orange.utils.render.anim.animatednumber.AnimatedFloat;
 import org.lwjgl.nanovg.NanoVG;
 
-import java.awt.*;
+import java.awt.Color;
+import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.io.PrintWriter;
 import java.io.StringWriter;
@@ -13,13 +16,16 @@ import java.io.StringWriter;
 /**
  * Metro 风格 Panic 屏（docs/orange-engine-ui-spec.md §7.9）。
  *
- * 由 {@code Utils.panic} 触发：先弹屏渲染（含崩溃摘要 + 诊断终端），
- * 4 秒后或按键/点击「关闭引擎」时 {@code System.exit(-1)}。
- * 触发瞬间把诊断文本写入系统剪贴板（尽力而为）。
+ * 触发后**常驻显示**，等待用户操作退出：点击「关闭引擎」或任意按键 →
+ * System.exit(-1)；「复制诊断信息」把摘要 + 完整栈写入系统剪贴板
+ * （触发瞬间也会自动写入一次，尽力而为）。
+ * 入场：Motion 引擎错落滑入（Fast In, Smooth Out，见规范 §9）。
  * 渲染循环未运行时（启动失败/初始化前）由调用方直接退出，不经过本类。
  */
 public final class PanicScreen {
-    private static final long SHOW_MS = 4000;
+    private static final long ENTRANCE_MS = 250;
+    private static final Motion.Easing ENTRANCE_EASING = Motion.Easing.QUAD_OUT;
+    private static final float SLIDE = 24f;
 
     private static final Color BG = new Color(0x1A, 0x1A, 0x1A);
     private static final Color PANEL = new Color(0x2D, 0x2D, 0x30);
@@ -31,7 +37,6 @@ public final class PanicScreen {
     private static final Color TEXT_FAINT = new Color(255, 255, 255, 72);
 
     private static volatile boolean active;
-    private static volatile long exitDeadline;
     private static volatile String title = "Engine Panic";
     private static volatile String threadName = "-";
     private static volatile String module = "-";
@@ -39,7 +44,17 @@ public final class PanicScreen {
     private static volatile String[] stackLines = new String[0];
     private static volatile String diagnosticsText = "";
 
-    // 按钮几何（render 时计算，onClick 复用）
+    /** 错落入场：dim/kicker/hero/subtitle/lede/panel/term/buttons/logo */
+    private static final AnimatedFloat[] entrance = {
+            new AnimatedFloat(0f), new AnimatedFloat(0f), new AnimatedFloat(0f),
+            new AnimatedFloat(0f), new AnimatedFloat(0f), new AnimatedFloat(0f),
+            new AnimatedFloat(0f), new AnimatedFloat(0f), new AnimatedFloat(0f)
+    };
+    private static final long[] START_MS = {0, 50, 160, 240, 300, 380, 480, 560, 620};
+    private static long openElapsedMs;
+    private static int stage;
+
+    // 按钮几何（render 时按最终位置计算，onClick 复用）
     private static float closeBtnX, closeBtnY, closeBtnW, closeBtnH;
     private static float copyBtnX, copyBtnY, copyBtnW, copyBtnH;
 
@@ -49,17 +64,12 @@ public final class PanicScreen {
         return active;
     }
 
-    public static long exitDeadline() {
-        return exitDeadline;
-    }
-
-    /** 幂等触发：已激活时忽略后续 panic（防止重复弹屏/反复 System.exit）。 */
+    /** 幂等触发：已激活时忽略后续 panic（防止重复弹屏/反复退出） */
     public static void trigger(String panicTitle, String threadName, String module, String code, Throwable t) {
         if (active) {
             return;
         }
         active = true;
-        exitDeadline = System.currentTimeMillis() + SHOW_MS;
         PanicScreen.title = panicTitle;
         PanicScreen.threadName = threadName;
         PanicScreen.module = module;
@@ -77,9 +87,28 @@ public final class PanicScreen {
                 + "code:   " + code + "\n"
                 + "error:  " + panicTitle + "\n\n"
                 + sw;
+        // 重置错落入场动画
+        for (AnimatedFloat a : entrance) {
+            a.set(0f);
+        }
+        openElapsedMs = 0;
+        stage = 0;
         copyToClipboard(diagnosticsText);
     }
 
+    /** 每帧推进入场动画（MainGame.renderGame 调用） */
+    public static void update(float deltaTime) {
+        if (!active) {
+            return;
+        }
+        openElapsedMs += (long) (deltaTime * 1000);
+        while (stage < entrance.length && openElapsedMs >= START_MS[stage]) {
+            entrance[stage].to(1f, ENTRANCE_MS, ENTRANCE_EASING);
+            stage++;
+        }
+    }
+
+    /** 任意按键直接退出 */
     public static void onKey() {
         doExit();
     }
@@ -88,11 +117,15 @@ public final class PanicScreen {
         if (action != 1) { // GLFW_PRESS
             return;
         }
-        if (x >= closeBtnX && x <= closeBtnX + closeBtnW && y >= closeBtnY && y <= closeBtnY + closeBtnH) {
+        if (hit(closeBtnX, closeBtnY, closeBtnW, closeBtnH, x, y)) {
             doExit();
-        } else if (x >= copyBtnX && x <= copyBtnX + copyBtnW && y >= copyBtnY && y <= copyBtnY + copyBtnH) {
+        } else if (hit(copyBtnX, copyBtnY, copyBtnW, copyBtnH, x, y)) {
             copyToClipboard(diagnosticsText);
         }
+    }
+
+    private static boolean hit(float bx, float by, float bw, float bh, float x, float y) {
+        return x >= bx && x <= bx + bw && y >= by && y <= by + bh;
     }
 
     private static void doExit() {
@@ -108,40 +141,69 @@ public final class PanicScreen {
         }
     }
 
+    // ---- 入场辅助 ----
+
+    private static float progress(int index) {
+        return entrance[index].get();
+    }
+
+    private static float slideX(float base, float p) {
+        return base + (1 - p) * SLIDE;
+    }
+
+    private static Color alpha(Color c, float p) {
+        return new Color(c.getRed(), c.getGreen(), c.getBlue(), (int) (c.getAlpha() * p));
+    }
+
     public static void render(long vg, int width, int height) {
         float margin = 120f;
         float top = 64f;
-        RenderUtils.drawRect(vg, 0, 0, width, height, BG);
+
+        // 背景淡入（覆盖在游戏画面上）
+        float bgP = progress(0);
+        RenderUtils.drawRect(vg, 0, 0, width, height,
+                new Color(BG.getRed(), BG.getGreen(), BG.getBlue(), (int) (255 * bgP)));
 
         // 小标题（与暂停页统一格式：ORANGE ENGINE v<版本> · <状态>）
+        float kickerP = progress(1);
         String kicker = "ORANGE ENGINE v" + OrangeEngine.version + " · ENGINE PANIC";
         FontManager.jetBrainsMono_CHS.drawText(kicker, NanoVG.NVG_ALIGN_LEFT | NanoVG.NVG_ALIGN_BASELINE,
-                margin, top + 13, 13, TEXT_FAINT);
+                slideX(margin, kickerP), top + 13, 13, alpha(TEXT_FAINT, kickerP));
 
         // 主标题 + 副标题
+        float heroP = progress(2);
         float heroY = top + 16 + 56;
         FontManager.hmSans_CHS.drawText("引擎遇到问题。", NanoVG.NVG_ALIGN_LEFT | NanoVG.NVG_ALIGN_BASELINE,
-                margin, heroY, 56, TEXT);
+                slideX(margin, heroP), heroY, 56, alpha(TEXT, heroP));
+        float subP = progress(3);
         float subY = heroY + 16 + 20;
         FontManager.jetBrainsMono_CHS.drawText("ENGINE PANIC", NanoVG.NVG_ALIGN_LEFT | NanoVG.NVG_ALIGN_BASELINE,
-                margin, subY, 20, CRIMSON);
+                slideX(margin, subP), subY, 20, alpha(CRIMSON, subP));
+
+        // 说明
+        float ledeP = progress(4);
+        FontManager.hmSans_CHS.drawText("发生了无法恢复的错误，引擎等待处理。可复制诊断信息以提交问题。",
+                NanoVG.NVG_ALIGN_LEFT | NanoVG.NVG_ALIGN_BASELINE,
+                slideX(margin, ledeP), subY + 20, 15, alpha(TEXT_DIM, ledeP));
 
         // 崩溃摘要面板
+        float panelP = progress(5);
         float panelW = Math.min(560, width - margin * 2);
-        float panelY = subY + 28;
+        float panelY = subY + 16 + 28;
         float rowH = 49f;
-        RenderUtils.drawRect(vg, margin, panelY, margin + panelW, panelY + 4 + 4 * rowH, PANEL);
-        RenderUtils.drawRect(vg, margin, panelY, margin + panelW, panelY + 1, LINE);
-        drawSummaryRow(vg, margin, panelY, panelW, rowH, 0, "异常", title);
-        drawSummaryRow(vg, margin, panelY, panelW, rowH, 1, "线程", threadName);
-        drawSummaryRow(vg, margin, panelY, panelW, rowH, 2, "模块", module);
-        drawSummaryRow(vg, margin, panelY, panelW, rowH, 3, "代码", code);
+        RenderUtils.drawRect(vg, margin, panelY, margin + panelW, panelY + 4 + 4 * rowH, alpha(PANEL, panelP));
+        RenderUtils.drawRect(vg, margin, panelY, margin + panelW, panelY + 1, new Color(255, 255, 255, (int) (30 * panelP)));
+        drawSummaryRow(vg, margin, panelY, panelW, rowH, 0, "异常", title, panelP);
+        drawSummaryRow(vg, margin, panelY, panelW, rowH, 1, "线程", threadName, panelP);
+        drawSummaryRow(vg, margin, panelY, panelW, rowH, 2, "模块", module, panelP);
+        drawSummaryRow(vg, margin, panelY, panelW, rowH, 3, "代码", code, panelP);
 
         // 诊断终端（仅显示前若干行）
+        float termP = progress(6);
         float termY = panelY + 4 + 4 * rowH + 20;
         float termH = Math.min(36, stackLines.length) * 22 + 32;
-        RenderUtils.drawRect(vg, margin, termY, margin + panelW, termY + termH, TERM_BG);
-        RenderUtils.drawRect(vg, margin, termY, margin + panelW, termY + 1, LINE);
+        RenderUtils.drawRect(vg, margin, termY, margin + panelW, termY + termH, alpha(TERM_BG, termP));
+        RenderUtils.drawRect(vg, margin, termY, margin + panelW, termY + 1, new Color(255, 255, 255, (int) (30 * termP)));
         float ty = termY + 24;
         int shown = Math.min(36, stackLines.length);
         for (int i = 0; i < shown; i++) {
@@ -152,11 +214,12 @@ public final class PanicScreen {
                 c = CRIMSON;
             }
             FontManager.jetBrainsMono_CHS.drawText(line, NanoVG.NVG_ALIGN_LEFT | NanoVG.NVG_ALIGN_BASELINE,
-                    margin + 20, ty, 13, c);
+                    margin + 20, ty, 13, alpha(c, termP));
             ty += 22;
         }
 
         // 底部操作按钮（右下角）
+        float btnP = progress(7);
         float btnY = height - 96;
         float closeW = 132, copyW = 176, gap = 12, btnH = 40;
         closeBtnX = width - 120 - closeW;
@@ -168,24 +231,35 @@ public final class PanicScreen {
         copyBtnW = copyW;
         copyBtnH = btnH;
 
-        RenderUtils.drawRect(vg, closeBtnX, btnY, closeBtnX + closeW, btnY + btnH, CRIMSON);
+        RenderUtils.drawRect(vg, closeBtnX, btnY, closeBtnX + closeW, btnY + btnH, alpha(CRIMSON, btnP));
         FontManager.hmSans_CHS.drawText("关闭引擎", NanoVG.NVG_ALIGN_CENTER | NanoVG.NVG_ALIGN_MIDDLE,
-                closeBtnX + closeW / 2, btnY + btnH / 2, 15, TEXT);
+                closeBtnX + closeW / 2, btnY + btnH / 2, 15, alpha(TEXT, btnP));
 
-        RenderUtils.drawRect(vg, copyBtnX, btnY, copyBtnX + copyW, btnY + btnH, new Color(255, 255, 255, 26));
+        RenderUtils.drawRect(vg, copyBtnX, btnY, copyBtnX + copyW, btnY + btnH,
+                new Color(255, 255, 255, (int) (26 * btnP)));
         FontManager.hmSans_CHS.drawText("复制诊断信息", NanoVG.NVG_ALIGN_CENTER | NanoVG.NVG_ALIGN_MIDDLE,
-                copyBtnX + copyW / 2, btnY + btnH / 2, 15, TEXT);
+                copyBtnX + copyW / 2, btnY + btnH / 2, 15, alpha(TEXT, btnP));
+
+        // Logo（geometos，左下角，与暂停页同款两行落款）
+        float logoP = progress(8);
+        String[] words = OrangeEngine.engineName.split(" ");
+        if (words.length >= 2) {
+            FontManager.geometos.drawText(words[0], NanoVG.NVG_ALIGN_LEFT | NanoVG.NVG_ALIGN_BOTTOM,
+                    slideX(margin, logoP), height - 30, 35, alpha(TEXT, logoP));
+            FontManager.geometos.drawText(words[1], NanoVG.NVG_ALIGN_LEFT | NanoVG.NVG_ALIGN_BOTTOM,
+                    slideX(margin, logoP), height - 10, 25, alpha(TEXT, logoP));
+        }
     }
 
     private static void drawSummaryRow(long vg, float x, float y, float w, float rowH,
-                                       int index, String label, String value) {
+                                       int index, String label, String value, float p) {
         float rowY = y + 4 + index * rowH;
         FontManager.jetBrainsMono_CHS.drawText(label, NanoVG.NVG_ALIGN_LEFT | NanoVG.NVG_ALIGN_MIDDLE,
-                x + 20, rowY + rowH / 2, 12, TEXT_FAINT);
+                x + 20, rowY + rowH / 2, 12, alpha(TEXT_FAINT, p));
         FontManager.jetBrainsMono_CHS.drawText(value, NanoVG.NVG_ALIGN_LEFT | NanoVG.NVG_ALIGN_MIDDLE,
-                x + 120, rowY + rowH / 2, 15, index == 0 ? CRIMSON : TEXT);
+                x + 120, rowY + rowH / 2, 15, alpha(index == 0 ? CRIMSON : TEXT, p));
         if (index < 3) {
-            RenderUtils.drawRect(vg, x, rowY + rowH, x + w, rowY + rowH + 1, LINE);
+            RenderUtils.drawRect(vg, x, rowY + rowH, x + w, rowY + rowH + 1, new Color(255, 255, 255, (int) (30 * p)));
         }
     }
 }
