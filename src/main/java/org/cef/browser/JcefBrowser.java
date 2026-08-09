@@ -531,7 +531,9 @@ public class JcefBrowser extends CefBrowser_N implements CefRenderHandler {
     @Override
     public void close(boolean force) {
         // 必须等 CEF 线程完成 N_Close 再释放 AWT 资源（dummyFrame 的 HWND 是
-        // 浏览器父窗口，提前销毁会导致 N_Close 失败/崩溃）
+        // 浏览器父窗口，提前销毁会导致 N_Close 失败/崩溃）。N_Close 在超时内
+        // 未完成（如视频播放中 teardown 慢）时放弃释放 dummyFrame：泄漏一个
+        // 隐藏窗口远好于 HWND use-after-free 的原生崩溃。
         if (CefTaskRunner.isCefThread()) {
             try { super.close(force); } catch (Exception ignored) {}
         } else {
@@ -541,12 +543,17 @@ public class JcefBrowser extends CefBrowser_N implements CefRenderHandler {
                 closeLatch.countDown();
             });
             try {
-                closeLatch.await(2000, TimeUnit.MILLISECONDS);
+                if (!closeLatch.await(5000, TimeUnit.MILLISECONDS)) {
+                    return; // N_Close 未完成：不触碰 AWT 资源
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+                return;
             }
         }
-        if (dummyFrame != null) {
+        // AWT 组件只能从 AWT/游戏主线程操作；在 CEF 线程上 dispose 会破坏
+        // AWT toolkit（隐藏窗口由进程退出时 OS 回收）。
+        if (dummyFrame != null && !CefTaskRunner.isCefThread()) {
             try { dummyFrame.dispose(); } catch (Exception ignored) {}
         }
     }

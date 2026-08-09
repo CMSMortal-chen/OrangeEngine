@@ -194,7 +194,12 @@ public final class OraLightCEFRuntime {
                 }, "JCEF-Dispose");
                 t.setDaemon(true);
                 t.start();
-                t.join(2000);
+                // MTML 下 CefShutdown 必须等 CEF UI 线程退出（CEF #1932：
+                // 消息循环线程未退时会挂起），视频播放中关闭尤其慢。等 10s
+                // 让 CEF 原生线程全部退出后再放行 System.exit，避免 JVM 与
+                // 仍存活、仍可能执行 JNI 回调的 CEF 线程竞争导致退出期原生
+                // 崩溃。真卡死则超时放过，由 System.exit 兜底。
+                t.join(10000);
             } catch (Exception e) {
                 LOGGER.warn("JCEF dispose interrupted", e);
             }
