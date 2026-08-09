@@ -2,6 +2,7 @@ package cms.mortalchen.orange.utils;
 
 import cms.mortalchen.orange.MainGame;
 import cms.mortalchen.orange.OrangeEngine;
+import cms.mortalchen.orange.render.PanicScreen;
 import org.apache.logging.log4j.Logger;
 import org.lwjgl.glfw.GLFWImage;
 import org.lwjgl.nanovg.NVGColor;
@@ -74,6 +75,19 @@ public class Utils {
         logger.fatal("!!!{} Engine Panic!!!", OrangeEngine.engineName);
         logger.fatal("Exception:", e);
         logger.fatal("!!!Encounter PANIC! {} will now EXIT!!!", OrangeEngine.engineName);
-        System.exit(-1);
+
+        MainGame main = MainGame.instance;
+        if (main == null || !MainGame.loopRunning) {
+            // 渲染循环未运行（启动失败/初始化前）：无法显示 Panic 屏，保持原行为直接退出
+            System.exit(-1);
+            return;
+        }
+        PanicScreen.trigger(
+                OrangeEngine.engineName + " Panic",
+                Thread.currentThread().getName(),
+                "OrangeEngine v" + OrangeEngine.version,
+                "0x00000000",
+                e);
+        main.exiting = true; // 停止逻辑线程，避免其反复触发 panic
     }
 }

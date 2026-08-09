@@ -4,6 +4,7 @@ import cms.mortalchen.orange.audio.AudioManager;
 import cms.mortalchen.orange.resource.ResourceManager;
 import cms.mortalchen.orange.states.GameState;
 import cms.mortalchen.orange.states.DefaultState;
+import cms.mortalchen.orange.render.PanicScreen;
 import cms.mortalchen.orange.states.PauseState;
 import cms.mortalchen.orange.utils.SyncTimer;
 import cms.mortalchen.orange.render.font.FontManager;
@@ -26,6 +27,8 @@ import javax.management.NotificationEmitter;
 
 import javax.swing.*;
 import java.awt.*;
+import java.io.OutputStream;
+import java.io.PrintStream;
 import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 
@@ -41,6 +44,8 @@ import static org.lwjgl.system.MemoryUtil.NULL;
 
 public class MainGame {
     public static String name = "OrangeEngine";
+    private static final Logger SYS_OUT = LogManager.getLogger("STDOUT");
+    private static final Logger SYS_ERR = LogManager.getLogger("STDERR");
     public final Logger logger = LogManager.getLogger(name + "-Game");
     public static int WINDOW_WIDTH = 1280;
     public static int WINDOW_HEIGHT = 720;
@@ -48,6 +53,8 @@ public class MainGame {
     public GameState currentState;
     public OrangeEngine engine;
     public boolean isGamePaused = false;
+    /** 主渲染循环是否在跑（false = 启动失败/尚未进入循环，Panic 屏无法渲染，Utils.panic 直接退出） */
+    public static volatile boolean loopRunning = false;
     public long vg;
     public Font font;
     public long window;
@@ -88,6 +95,7 @@ public class MainGame {
     },"GameLogicThread");
 
     public void startGame() {
+        redirectSysOut();
         instance = this;
         initGame();
         double lastTime = glfwGetTime();
@@ -95,6 +103,7 @@ public class MainGame {
 
         gameUpdateThread.start();
 
+        loopRunning = true;
         while (!glfwWindowShouldClose(window)) {
             try {
                 double currentTime = glfwGetTime();
@@ -110,6 +119,10 @@ public class MainGame {
                 glfwSwapBuffers(window);
                 glfwPollEvents();
 
+                if (PanicScreen.isActive() && System.currentTimeMillis() > PanicScreen.exitDeadline()) {
+                    System.exit(-1); // Panic 屏展示超时，退出
+                }
+
                 lastTime = currentTime;
                 engine.fpsCounter.update(deltaTime);
 
@@ -121,6 +134,7 @@ public class MainGame {
                 Utils.panic(logger, e);
             }
         }
+        loopRunning = false;
         endGame();
     }
 
@@ -235,6 +249,10 @@ public class MainGame {
             pauseState.render(vg);
         }
 
+        if (PanicScreen.isActive()) {
+            PanicScreen.render(vg, WINDOW_WIDTH, WINDOW_HEIGHT);
+        }
+
         if (showFPS) {
             String fps = String.format("FPS: %.0f", engine.fpsCounter.getFPS());
             font.drawTextWithShadow(fps, NVG_ALIGN_BASELINE, 15, WINDOW_HEIGHT - 20, 22, new Color(255,255,255));
@@ -282,10 +300,15 @@ public class MainGame {
         logger.info("Setting up callbacks...");
 
         glfwSetMouseButtonCallback(window, (window, button, action, mods) -> {
+            var mousePos = OrangeEngine.instance.inputManager.getMousePos();
+            if (PanicScreen.isActive()) {
+                PanicScreen.onClick(button, action, mousePos.x, mousePos.y);
+                return;
+            }
             if (isGamePaused) {
-                pauseState.onMouseClick(button, action, OrangeEngine.instance.inputManager.getMousePos());
+                pauseState.onMouseClick(button, action, mousePos);
             }else  {
-                currentState.onMouseClick(button, action,OrangeEngine.instance.inputManager.getMousePos());
+                currentState.onMouseClick(button, action, mousePos);
             }
         });
 
@@ -306,6 +329,11 @@ public class MainGame {
         });
         
         glfwSetKeyCallback(window, (window, key, scancode, action, mods) -> {
+            if (PanicScreen.isActive()) {
+                PanicScreen.onKey(); // Panic 屏激活时任意按键直接退出
+                return;
+            }
+
             if (engine.inputManager.isKeyPressed(GLFW_KEY_ESCAPE)) {
                 if (!(currentState instanceof PauseState) && currentState.allowPause && isPauseEnable) {
                     isGamePaused = !isGamePaused;
@@ -394,5 +422,57 @@ public class MainGame {
             isGamePaused = false;
         }
         currentState = nextState;
+    }
+    private static void redirectSysOut() {
+        PrintStream origOut = System.out;
+        PrintStream origErr = System.err;
+
+        System.setOut(new PrintStream(new OutputStream() {
+            private final StringBuilder sb = new StringBuilder();
+            @Override
+            public void write(int b) {
+                if (b == '\n') {
+                    String line = sb.toString();
+                    SYS_OUT.info("[SYS_OUT] {}", line);
+                    origOut.println(line);
+                    sb.setLength(0);
+                } else if (b != '\r') {
+                    sb.append((char) b);
+                }
+            }
+            @Override
+            public void flush() {
+                if (sb.length() > 0) {
+                    SYS_OUT.info("[SYS_OUT] {}", sb.toString());
+                    origOut.print(sb.toString());
+                    sb.setLength(0);
+                }
+                origOut.flush();
+            }
+        }));
+
+        System.setErr(new PrintStream(new OutputStream() {
+            private final StringBuilder sb = new StringBuilder();
+            @Override
+            public void write(int b) {
+                if (b == '\n') {
+                    String line = sb.toString();
+                    SYS_ERR.error("[SYS_ERR] {}", line);
+                    origErr.println(line);
+                    sb.setLength(0);
+                } else if (b != '\r') {
+                    sb.append((char) b);
+                }
+            }
+            @Override
+            public void flush() {
+                if (sb.length() > 0) {
+                    SYS_ERR.error("[SYS_ERR] {}", sb.toString());
+                    origErr.print(sb.toString());
+                    sb.setLength(0);
+                }
+                origErr.flush();
+            }
+        }));
     }
 }
