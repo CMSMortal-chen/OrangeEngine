@@ -22,9 +22,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /**
- * JOGAMP-free off-screen CEF browser. Uses a plain AWT Canvas (not GLCanvas)
- * inside a hidden Frame to provide a valid native HWND for the standard
- * jcef.dll JAWT code.
+ * JOGAMP-free off-screen CEF browser. The custom 7-param N_CreateBrowser
+ * native protocol creates the OSR browser with a null parent HWND
+ * (SetAsWindowless(0)), so no AWT window is needed here — the hidden
+ * Frame/Canvas was legacy compatibility with official JCEF's JAWT path.
  *
  * Must live in org.cef.browser to access package-private CefBrowser_N members.
  */
@@ -32,8 +33,6 @@ public class JcefBrowser extends CefBrowser_N implements CefRenderHandler {
 
     private final Rectangle viewRect = new Rectangle(0, 0, 1, 1);
     private final Point screenPoint = new Point(0, 0);
-    private final Canvas canvas;
-    private final Frame dummyFrame;
     private final boolean transparent;
 
     private final Object paintLock = new Object();
@@ -60,12 +59,6 @@ public class JcefBrowser extends CefBrowser_N implements CefRenderHandler {
     public JcefBrowser(CefClient client, String url, boolean transparent, CefBrowserSettings settings) {
         super(client, url, null, null, null, settings);
         this.transparent = transparent;
-
-        // Frame must stay alive — Canvas peer depends on it for valid HWND.
-        dummyFrame = new Frame("Orange-JCEF");
-        canvas = new Canvas();
-        dummyFrame.add(canvas);
-        dummyFrame.pack();
     }
 
     @Override
@@ -530,31 +523,21 @@ public class JcefBrowser extends CefBrowser_N implements CefRenderHandler {
 
     @Override
     public void close(boolean force) {
-        // 必须等 CEF 线程完成 N_Close 再释放 AWT 资源（dummyFrame 的 HWND 是
-        // 浏览器父窗口，提前销毁会导致 N_Close 失败/崩溃）。N_Close 在超时内
-        // 未完成（如视频播放中 teardown 慢）时放弃释放 dummyFrame：泄漏一个
-        // 隐藏窗口远好于 HWND use-after-free 的原生崩溃。
+        // N_Close 必须跑在 CEF UI 线程（MTML）。OSR 无父 HWND（SetAsWindowless(0)），
+        // 无需等待窗口释放；等最多 2s 保持“关闭已发起”的同步语义。
         if (CefTaskRunner.isCefThread()) {
             try { super.close(force); } catch (Exception ignored) {}
-        } else {
-            CountDownLatch closeLatch = new CountDownLatch(1);
-            runOnCefThread(() -> {
-                try { super.close(force); } catch (Exception ignored) {}
-                closeLatch.countDown();
-            });
-            try {
-                if (!closeLatch.await(5000, TimeUnit.MILLISECONDS)) {
-                    return; // N_Close 未完成：不触碰 AWT 资源
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                return;
-            }
+            return;
         }
-        // AWT 组件只能从 AWT/游戏主线程操作；在 CEF 线程上 dispose 会破坏
-        // AWT toolkit（隐藏窗口由进程退出时 OS 回收）。
-        if (dummyFrame != null && !CefTaskRunner.isCefThread()) {
-            try { dummyFrame.dispose(); } catch (Exception ignored) {}
+        CountDownLatch closeLatch = new CountDownLatch(1);
+        runOnCefThread(() -> {
+            try { super.close(force); } catch (Exception ignored) {}
+            closeLatch.countDown();
+        });
+        try {
+            closeLatch.await(2000, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 }

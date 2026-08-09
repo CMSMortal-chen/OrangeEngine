@@ -1,10 +1,8 @@
 package cms.mortalchen.orange.states;
 
 import cms.mortalchen.orange.MainGame;
-import cms.mortalchen.orange.OrangeEngine;
 import cms.mortalchen.orange.oralightcef.OraLightCEF;
 import org.joml.Vector2f;
-import org.lwjgl.glfw.GLFW;
 
 public class OraLightCEFTestState extends GameState {
     private OraLightCEF oraLightCEF;
@@ -61,10 +59,6 @@ public class OraLightCEFTestState extends GameState {
 
     @Override
     public void onKeyPressed(int key, int scancode, int action, int mods) {
-        if (OrangeEngine.instance.inputManager.isKeyPressed(GLFW.GLFW_KEY_F10)) {
-            game.changeState(new DefaultState(game));
-            return;
-        }
         if (oraLightCEF != null) {
             oraLightCEF.key(key, scancode, action, mods);
         }
