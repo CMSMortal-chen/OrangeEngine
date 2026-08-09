@@ -62,7 +62,10 @@ public class ResourceManager implements ILoggerImp {
     }
 
     private byte[] readClasspath(String path) {
-        try (InputStream in = ResourceManager.class.getClassLoader().getResourceAsStream(path)) {
+        // 必须用 Class.getResourceAsStream：ClassLoader 版不剥离前导 "/"，
+        // 对 "/textures/..." 这类路径恒返回 null
+        String resourcePath = path.startsWith("/") ? path : "/" + path;
+        try (InputStream in = ResourceManager.class.getResourceAsStream(resourcePath)) {
             if (in == null) {
                 logger.error("Resource not found: {}", path);
                 return null;

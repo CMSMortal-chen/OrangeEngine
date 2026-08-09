@@ -242,7 +242,7 @@ public final class PanicScreen {
                 NanoVG.NVG_ALIGN_LEFT | NanoVG.NVG_ALIGN_BASELINE,
                 slideX(margin, ledeP), subY + 20, 15, alpha(TEXT_DIM, ledeP));
         float warnY = subY + 20 + 20;
-        FontManager.hmSans_CHS.drawText("⚠ 继续游戏可能有风险：崩溃现场状态不完整，可能再次崩溃或表现异常。",
+        FontManager.jetBrainsMono_CHS.drawText("⚠ 继续游戏可能有风险：崩溃现场状态不完整，可能再次崩溃或表现异常。",
                 NanoVG.NVG_ALIGN_LEFT | NanoVG.NVG_ALIGN_BASELINE,
                 slideX(margin, ledeP), warnY, 15, alpha(AMBER, ledeP));
 
@@ -269,7 +269,7 @@ public final class PanicScreen {
         }
         // 高度钳制：不越过底部按钮行（btnY = height - 96）
         float maxTermH = (height - 96 - 12) - termY;
-        float termH = Math.min(termLines.size() * 22 + 32, Math.max(48, maxTermH));
+        float termH = Math.clamp(maxTermH, 48, termLines.size() * 22 + 32);
         RenderUtils.drawRect(vg, margin, termY, margin + panelW, termY + termH, alpha(TERM_BG, termP));
         RenderUtils.drawRect(vg, margin, termY, margin + panelW, termY + 1, new Color(255, 255, 255, (int) (30 * termP)));
         nvgSave(vg);

@@ -53,7 +53,9 @@ public class Utils {
 
     /** 读取 classpath 资源为可释放的 DirectByteBuffer；缺失/失败返回 null */
     private static ByteBuffer readClasspath(String path) {
-        try (InputStream in = Utils.class.getClassLoader().getResourceAsStream(path)) {
+        // Class.getResourceAsStream 处理前导 "/"（ClassLoader 版不剥离）
+        String resourcePath = path.startsWith("/") ? path : "/" + path;
+        try (InputStream in = Utils.class.getResourceAsStream(resourcePath)) {
             if (in == null) {
                 System.err.println("Resource not found: " + path);
                 return null;
@@ -83,8 +85,7 @@ public class Utils {
             System.exit(-1);
             return;
         }
-        PanicScreen.trigger(
-                OrangeEngine.engineName + " Panic",
+        PanicScreen.trigger(e.getClass().getName(),
                 Thread.currentThread().getName(),
                 "OrangeEngine v" + OrangeEngine.version,
                 "0x00000000",
