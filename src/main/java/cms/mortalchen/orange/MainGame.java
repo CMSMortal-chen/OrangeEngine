@@ -338,6 +338,9 @@ public class MainGame {
             if (action == GLFW_PRESS && key == GLFW_KEY_ESCAPE) {
                 if (!(currentState instanceof PauseState) && currentState.allowPause && isPauseEnable) {
                     isGamePaused = !isGamePaused;
+                    if (isGamePaused) {
+                        pauseState.onPauseOpened(); // 重置错落入场动画
+                    }
                 }
             }
 
