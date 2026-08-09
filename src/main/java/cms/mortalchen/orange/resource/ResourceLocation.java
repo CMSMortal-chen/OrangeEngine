@@ -1,13 +1,11 @@
 package cms.mortalchen.orange.resource;
 
-import lombok.Getter;
-import lombok.Setter;
-
-@Getter
-@Setter
+/**
+ * 资源标识：classpath 路径 + 已缓存的 NanoVG 纹理句柄。
+ */
 public final class ResourceLocation {
     private final String path;
-    private int id;
+    private int textureId;
 
     public ResourceLocation(String path) {
         this.path = path;
@@ -18,10 +16,10 @@ public final class ResourceLocation {
     }
 
     public int getId() {
-        return id;
+        return textureId;
     }
 
     public void setId(int id) {
-        this.id = id;
+        this.textureId = id;
     }
 }

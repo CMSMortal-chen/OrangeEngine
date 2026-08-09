@@ -4,6 +4,7 @@ import cms.mortalchen.orange.OrangeEngine;
 
 /**
  * 老式的动画系统
+ * 请使用Motion制作新的动画
  * @author Mortal
  */
 public class AnimationUtil {

@@ -10,60 +10,59 @@ import org.lwjgl.stb.STBImage;
 import org.lwjgl.system.MemoryStack;
 import org.lwjgl.system.MemoryUtil;
 
-import java.awt.*;
-import java.io.BufferedInputStream;
-import java.io.ByteArrayOutputStream;
+import java.awt.Color;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
-import java.util.Objects;
 
 public class Utils {
+
+    /** 从 classpath 读取图像并解码为 GLFW 图标（窗口图标用） */
     public static GLFWImage.Buffer loadImage(String path) {
         try (MemoryStack stack = MemoryStack.stackPush()) {
-            ByteBuffer imageBuffer = null;
-            IntBuffer comp = stack.mallocInt(1);
-            IntBuffer w = stack.mallocInt(1);
-            IntBuffer h = stack.mallocInt(1);
+            IntBuffer width = stack.mallocInt(1);
+            IntBuffer height = stack.mallocInt(1);
+            IntBuffer channels = stack.mallocInt(1);
 
-            try (InputStream in = Utils.class.getClassLoader().getResourceAsStream(path);
-                 BufferedInputStream bufferedIn = new BufferedInputStream(Objects.requireNonNull(in))) {
-
-                ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-                int bytesRead;
-                byte[] data = new byte[1024];
-                while ((bytesRead = bufferedIn.read(data, 0, data.length)) != -1) {
-                    buffer.write(data, 0, bytesRead);
-                }
-                buffer.flush();
-                byte[] imageBytes = buffer.toByteArray();
-
-                imageBuffer = MemoryUtil.memAlloc(imageBytes.length);
-                imageBuffer.put(imageBytes);
-                imageBuffer.flip();
-
-                ByteBuffer image = STBImage.stbi_load_from_memory(imageBuffer, w, h, comp, 4);
-                if (image == null) {
-                    throw new RuntimeException("Failed to load image: " + path);
-                }
-
-                // Create a GLFWImage to hold the loaded image
-                GLFWImage.Buffer iconBuffer = GLFWImage.malloc(1);
-                iconBuffer.position(0);
-                iconBuffer.width(w.get(0));
-                iconBuffer.height(h.get(0));
-                iconBuffer.pixels(image);
-
-                return iconBuffer;
-            } catch (IOException e) {
-                e.printStackTrace();
+            ByteBuffer encoded = readClasspath(path);
+            if (encoded == null) {
                 return null;
-            } finally {
-                if (imageBuffer != null) {
-                    MemoryUtil.memFree(imageBuffer);
-                }
             }
+            try {
+                ByteBuffer pixels = STBImage.stbi_load_from_memory(encoded, width, height, channels, 4);
+                if (pixels == null) {
+                    System.err.println("Failed to decode image: " + path);
+                    return null;
+                }
+                GLFWImage.Buffer icon = GLFWImage.malloc(1);
+                icon.width(width.get(0));
+                icon.height(height.get(0));
+                icon.pixels(pixels);
+                return icon;
+            } finally {
+                MemoryUtil.memFree(encoded);
+            }
+        } catch (Throwable t) {
+            t.printStackTrace();
+            return null;
+        }
+    }
+
+    /** 读取 classpath 资源为可释放的 DirectByteBuffer；缺失/失败返回 null */
+    private static ByteBuffer readClasspath(String path) {
+        try (InputStream in = Utils.class.getClassLoader().getResourceAsStream(path)) {
+            if (in == null) {
+                System.err.println("Resource not found: " + path);
+                return null;
+            }
+            byte[] data = in.readAllBytes();
+            ByteBuffer buffer = MemoryUtil.memAlloc(data.length);
+            buffer.put(data).flip();
+            return buffer;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return null;
         }
     }
 
