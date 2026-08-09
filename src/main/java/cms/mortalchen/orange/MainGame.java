@@ -334,7 +334,8 @@ public class MainGame {
                 return;
             }
 
-            if (engine.inputManager.isKeyPressed(GLFW_KEY_ESCAPE)) {
+            // 仅 PRESS 时切换一次：按住 ESC 的 REPEAT 事件不会反复开关暂停
+            if (action == GLFW_PRESS && key == GLFW_KEY_ESCAPE) {
                 if (!(currentState instanceof PauseState) && currentState.allowPause && isPauseEnable) {
                     isGamePaused = !isGamePaused;
                 }

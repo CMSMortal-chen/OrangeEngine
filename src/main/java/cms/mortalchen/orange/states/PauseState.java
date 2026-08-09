@@ -106,9 +106,10 @@ public class PauseState extends GameState {
             selectedIndex = (selectedIndex + 1) % items.length;
         } else if (press && (key == GLFW_KEY_ENTER || key == GLFW_KEY_KP_ENTER || key == GLFW_KEY_J)) {
             actions[selectedIndex].run();
-        } else if (press && (key == GLFW_KEY_ESCAPE || key == GLFW_KEY_K)) {
-            resumeGame();
         }
+        // 注意：ESC 返回游戏由 MainGame 的 isKeyPressed(ESCAPE) 统一切换
+        // （同一次 ESC 按下事件会先置 isGamePaused=true 再分发到这里，
+        // 若此处再 resumeGame 会把刚开启的暂停立刻关掉）
     }
 
     @Override
