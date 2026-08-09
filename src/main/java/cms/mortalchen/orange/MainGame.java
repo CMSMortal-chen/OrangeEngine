@@ -75,24 +75,41 @@ public class MainGame {
 
     public static Runnable startMainGame = () -> {};
 
-    public Thread gameUpdateThread = new Thread(() -> {
-        logger.info("GameLogic Thread started.");
-        SyncTimer logicTimer = new SyncTimer(SyncTimer.JAVA_NANO);
+    public Thread gameUpdateThread = createGameLogicThread();
 
-        while (!exiting) {
-            try {
-                if (!isGamePaused) {
-                    currentState.updateTick(deltaTime);
+    private Thread createGameLogicThread() {
+        return new Thread(() -> {
+            logger.info("GameLogic Thread started.");
+            SyncTimer logicTimer = new SyncTimer(SyncTimer.JAVA_NANO);
+
+            while (!exiting) {
+                try {
+                    if (!isGamePaused) {
+                        currentState.updateTick(deltaTime);
+                    }
+                }catch (Exception e){
+                    logger.fatal("A Exception at GameLogic Thread!");
+                    Utils.panic(logger,e);
                 }
-            }catch (Exception e){
-                logger.fatal("A Exception at GameLogic Thread!");
-                Utils.panic(logger,e);
+                logicTimer.sync(30);
             }
-            logicTimer.sync(30);
-        }
 
-        logger.info("GameLogic Thread ended.");
-    },"GameLogicThread");
+            logger.info("GameLogic Thread ended.");
+        },"GameLogicThread");
+    }
+
+    /**
+     * Panic 屏「继续游戏」：恢复退出标记并重启逻辑线程。
+     * 尽力而为：panic 发生在 updateTick 中途，游戏对象可能处于半更新状态，
+     * 继续运行可能再次抛异常（重新弹 Panic 屏）或产生视觉/逻辑异常。
+     */
+    public void resumeAfterPanic() {
+        exiting = false;
+        if (gameUpdateThread == null || !gameUpdateThread.isAlive()) {
+            gameUpdateThread = createGameLogicThread();
+            gameUpdateThread.start();
+        }
+    }
 
     public void startGame() {
         redirectSysOut();

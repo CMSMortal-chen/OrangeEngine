@@ -1,5 +1,6 @@
 package cms.mortalchen.orange.render;
 
+import cms.mortalchen.orange.MainGame;
 import cms.mortalchen.orange.OrangeEngine;
 import cms.mortalchen.orange.render.font.FontManager;
 import cms.mortalchen.orange.utils.render.RenderUtils;
@@ -55,6 +56,7 @@ public final class PanicScreen {
     private static int stage;
 
     // 按钮几何（render 时按最终位置计算，onClick 复用）
+    private static float continueBtnX, continueBtnY, continueBtnW, continueBtnH;
     private static float closeBtnX, closeBtnY, closeBtnW, closeBtnH;
     private static float copyBtnX, copyBtnY, copyBtnW, copyBtnH;
 
@@ -117,10 +119,35 @@ public final class PanicScreen {
         if (action != 1) { // GLFW_PRESS
             return;
         }
-        if (hit(closeBtnX, closeBtnY, closeBtnW, closeBtnH, x, y)) {
+        if (hit(continueBtnX, continueBtnY, continueBtnW, continueBtnH, x, y)) {
+            resumeGame();
+        } else if (hit(closeBtnX, closeBtnY, closeBtnW, closeBtnH, x, y)) {
             doExit();
         } else if (hit(copyBtnX, copyBtnY, copyBtnW, copyBtnH, x, y)) {
             copyToClipboard(diagnosticsText);
+        }
+    }
+
+    /**
+     * 继续游戏：关闭 Panic 屏并尽力恢复运行。
+     * <p>可能产生 bug（尽力而为，不保证状态一致）：
+     * <ul>
+     *   <li>panic 发生在 updateTick/render 中途，对象可能处于半更新状态，继续运行可能立即再次抛异常（重新弹屏）</li>
+     *   <li>逻辑线程被重启，但其持有上下文（局部状态/游标等）已丢失</li>
+     *   <li>若异常源于渲染/离屏/CEF 路径，GL 纹理或浏览器可能处于坏状态（花屏/黑屏/音频异常）</li>
+     * </ul>
+     */
+    public static void resumeGame() {
+        if (!active) {
+            return;
+        }
+        active = false;
+        for (AnimatedFloat a : entrance) {
+            a.set(0f);
+        }
+        MainGame main = MainGame.instance;
+        if (main != null) {
+            main.resumeAfterPanic();
         }
     }
 
@@ -218,10 +245,10 @@ public final class PanicScreen {
             ty += 22;
         }
 
-        // 底部操作按钮（右下角）
+        // 底部操作按钮（右下角）：[继续游戏][复制诊断信息][关闭引擎]
         float btnP = progress(7);
         float btnY = height - 96;
-        float closeW = 132, copyW = 176, gap = 12, btnH = 40;
+        float continueW = 132, closeW = 132, copyW = 176, gap = 12, btnH = 40;
         closeBtnX = width - 120 - closeW;
         closeBtnY = btnY;
         closeBtnW = closeW;
@@ -230,11 +257,23 @@ public final class PanicScreen {
         copyBtnY = btnY;
         copyBtnW = copyW;
         copyBtnH = btnH;
+        continueBtnX = copyBtnX - gap - continueW;
+        continueBtnY = btnY;
+        continueBtnW = continueW;
+        continueBtnH = btnH;
 
+        // 继续游戏（Accent 实底，逃生通道）
+        RenderUtils.drawRect(vg, continueBtnX, btnY, continueBtnX + continueW, btnY + btnH,
+                alpha(OrangeEngine.accentColor, btnP));
+        FontManager.hmSans_CHS.drawText("继续游戏", NanoVG.NVG_ALIGN_CENTER | NanoVG.NVG_ALIGN_MIDDLE,
+                continueBtnX + continueW / 2, btnY + btnH / 2, 15, alpha(TEXT, btnP));
+
+        // 关闭引擎（Crimson 实底，右缘）
         RenderUtils.drawRect(vg, closeBtnX, btnY, closeBtnX + closeW, btnY + btnH, alpha(CRIMSON, btnP));
         FontManager.hmSans_CHS.drawText("关闭引擎", NanoVG.NVG_ALIGN_CENTER | NanoVG.NVG_ALIGN_MIDDLE,
                 closeBtnX + closeW / 2, btnY + btnH / 2, 15, alpha(TEXT, btnP));
 
+        // 复制诊断信息（透明底）
         RenderUtils.drawRect(vg, copyBtnX, btnY, copyBtnX + copyW, btnY + btnH,
                 new Color(255, 255, 255, (int) (26 * btnP)));
         FontManager.hmSans_CHS.drawText("复制诊断信息", NanoVG.NVG_ALIGN_CENTER | NanoVG.NVG_ALIGN_MIDDLE,
