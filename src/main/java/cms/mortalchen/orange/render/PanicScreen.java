@@ -32,6 +32,7 @@ public final class PanicScreen {
     private static final Color PANEL = new Color(0x2D, 0x2D, 0x30);
     private static final Color TERM_BG = new Color(0x0C, 0x0C, 0x0C);
     private static final Color CRIMSON = new Color(0xA2, 0x00, 0x25);
+    private static final Color AMBER = new Color(0xF0, 0xA3, 0x0A); // 继续游戏风险提示
     private static final Color LINE = new Color(255, 255, 255, 30);
     private static final Color TEXT = Color.WHITE;
     private static final Color TEXT_DIM = new Color(255, 255, 255, 140);
@@ -207,16 +208,20 @@ public final class PanicScreen {
         FontManager.jetBrainsMono_CHS.drawText("ENGINE PANIC", NanoVG.NVG_ALIGN_LEFT | NanoVG.NVG_ALIGN_BASELINE,
                 slideX(margin, subP), subY, 20, alpha(CRIMSON, subP));
 
-        // 说明
+        // 说明 + 继续游戏风险提示
         float ledeP = progress(4);
         FontManager.hmSans_CHS.drawText("发生了无法恢复的错误，引擎等待处理。可复制诊断信息以提交问题。",
                 NanoVG.NVG_ALIGN_LEFT | NanoVG.NVG_ALIGN_BASELINE,
                 slideX(margin, ledeP), subY + 20, 15, alpha(TEXT_DIM, ledeP));
+        float warnY = subY + 20 + 20;
+        FontManager.hmSans_CHS.drawText("⚠ 继续游戏可能有风险：崩溃现场状态不完整，可能再次崩溃或表现异常。",
+                NanoVG.NVG_ALIGN_LEFT | NanoVG.NVG_ALIGN_BASELINE,
+                slideX(margin, ledeP), warnY, 15, alpha(AMBER, ledeP));
 
         // 崩溃摘要面板
         float panelP = progress(5);
         float panelW = Math.min(560, width - margin * 2);
-        float panelY = subY + 16 + 28;
+        float panelY = warnY + 24;
         float rowH = 49f;
         RenderUtils.drawRect(vg, margin, panelY, margin + panelW, panelY + 4 + 4 * rowH, alpha(PANEL, panelP));
         RenderUtils.drawRect(vg, margin, panelY, margin + panelW, panelY + 1, new Color(255, 255, 255, (int) (30 * panelP)));
@@ -279,14 +284,16 @@ public final class PanicScreen {
         FontManager.hmSans_CHS.drawText("复制诊断信息", NanoVG.NVG_ALIGN_CENTER | NanoVG.NVG_ALIGN_MIDDLE,
                 copyBtnX + copyW / 2, btnY + btnH / 2, 15, alpha(TEXT, btnP));
 
-        // Logo（geometos，左下角，与暂停页同款两行落款）
+        // Logo（geometos，左下角，与按钮行垂直居中对齐）
         float logoP = progress(8);
         String[] words = OrangeEngine.engineName.split(" ");
         if (words.length >= 2) {
+            // 两行 logo 块垂直中心 = btnY + btnH/2（按钮行中心），
+            // 上行底 = 中心 +12.5，下行底 = 中心 -12.5 → 底 69 / 49
             FontManager.geometos.drawText(words[0], NanoVG.NVG_ALIGN_LEFT | NanoVG.NVG_ALIGN_BOTTOM,
-                    slideX(margin, logoP), height - 30, 35, alpha(TEXT, logoP));
+                    slideX(margin, logoP), height - 69, 35, alpha(TEXT, logoP));
             FontManager.geometos.drawText(words[1], NanoVG.NVG_ALIGN_LEFT | NanoVG.NVG_ALIGN_BOTTOM,
-                    slideX(margin, logoP), height - 10, 25, alpha(TEXT, logoP));
+                    slideX(margin, logoP), height - 49, 25, alpha(TEXT, logoP));
         }
     }
 
