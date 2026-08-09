@@ -13,6 +13,12 @@ import java.awt.Toolkit;
 import java.awt.datatransfer.StringSelection;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.lwjgl.nanovg.NanoVG.nvgRestore;
+import static org.lwjgl.nanovg.NanoVG.nvgSave;
+import static org.lwjgl.nanovg.NanoVG.nvgScissor;
 
 /**
  * Metro 风格 Panic 屏（docs/orange-engine-ui-spec.md §7.9）。
@@ -156,6 +162,28 @@ public final class PanicScreen {
         return x >= bx && x <= bx + bw && y >= by && y <= by + bh;
     }
 
+    /**
+     * 把栈行按终端可用宽度换行：短行直接保留（精确测量），长行按等宽字符
+     * 近似（0.6em/字符）逐段截断，保证不超出终端框右缘。
+     */
+    private static List<String> fitToWidth(String[] lines, float maxWidth) {
+        List<String> out = new ArrayList<>();
+        for (String line : lines) {
+            if (line.isEmpty() || FontManager.jetBrainsMono_CHS.getStringWidth(line, 13) <= maxWidth) {
+                out.add(line);
+                continue;
+            }
+            int perLine = Math.max(1, (int) (maxWidth / (13f * 0.6f)));
+            String rest = line;
+            while (FontManager.jetBrainsMono_CHS.getStringWidth(rest, 13) > maxWidth && rest.length() > perLine) {
+                out.add(rest.substring(0, perLine));
+                rest = rest.substring(perLine);
+            }
+            out.add(rest);
+        }
+        return out;
+    }
+
     private static void doExit() {
         System.exit(-1);
     }
@@ -230,16 +258,24 @@ public final class PanicScreen {
         drawSummaryRow(vg, margin, panelY, panelW, rowH, 2, "模块", module, panelP);
         drawSummaryRow(vg, margin, panelY, panelW, rowH, 3, "代码", code, panelP);
 
-        // 诊断终端（仅显示前若干行）
+        // 诊断终端（长行换行 + 裁剪，防止文字溢出边框）
         float termP = progress(6);
         float termY = panelY + 4 + 4 * rowH + 20;
-        float termH = Math.min(36, stackLines.length) * 22 + 32;
+        List<String> termLines = fitToWidth(stackLines, panelW - 40);
+        int maxTermLines = 30;
+        if (termLines.size() > maxTermLines) {
+            termLines = new ArrayList<>(termLines.subList(0, maxTermLines));
+            termLines.add("… (stack truncated)");
+        }
+        // 高度钳制：不越过底部按钮行（btnY = height - 96）
+        float maxTermH = (height - 96 - 12) - termY;
+        float termH = Math.min(termLines.size() * 22 + 32, Math.max(48, maxTermH));
         RenderUtils.drawRect(vg, margin, termY, margin + panelW, termY + termH, alpha(TERM_BG, termP));
         RenderUtils.drawRect(vg, margin, termY, margin + panelW, termY + 1, new Color(255, 255, 255, (int) (30 * termP)));
+        nvgSave(vg);
+        nvgScissor(vg, margin, termY, panelW, termH);
         float ty = termY + 24;
-        int shown = Math.min(36, stackLines.length);
-        for (int i = 0; i < shown; i++) {
-            String line = stackLines[i];
+        for (String line : termLines) {
             Color c = TEXT_DIM;
             if (line.startsWith("java.") || line.startsWith("Exception")
                     || line.startsWith("Caused by") || line.startsWith("FATAL")) {
@@ -249,6 +285,7 @@ public final class PanicScreen {
                     margin + 20, ty, 13, alpha(c, termP));
             ty += 22;
         }
+        nvgRestore(vg);
 
         // 底部操作按钮（右下角）：[继续游戏][复制诊断信息][关闭引擎]
         float btnP = progress(7);
