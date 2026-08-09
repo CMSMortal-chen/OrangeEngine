@@ -1,5 +1,6 @@
 package cms.mortalchen.orange.input;
 
+import lombok.Getter;
 import org.joml.Vector2f;
 import org.lwjgl.glfw.GLFW;
 
@@ -10,7 +11,8 @@ public class InputManager {
     private final long windowHandle;
     private final double[] cursorX = new double[1];
     private final double[] cursorY = new double[1];
-    /** 公开字段：部分调用方（Widget 等）直接读取 */
+    /** 公开字段（部分调用方如 Widget 直接读取）；@Getter 生成 getMousePos() */
+    @Getter
     public final Vector2f mousePos = new Vector2f();
 
     public InputManager(long windowHandle) {
@@ -26,9 +28,5 @@ public class InputManager {
     public void onUpdate() {
         GLFW.glfwGetCursorPos(windowHandle, cursorX, cursorY);
         mousePos.set((float) cursorX[0], (float) cursorY[0]);
-    }
-
-    public Vector2f getMousePos() {
-        return mousePos;
     }
 }

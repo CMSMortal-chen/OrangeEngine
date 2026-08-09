@@ -3,6 +3,7 @@ package cms.mortalchen.orange.utils;
 import cms.mortalchen.orange.MainGame;
 import cms.mortalchen.orange.OrangeEngine;
 import cms.mortalchen.orange.render.PanicScreen;
+import lombok.experimental.UtilityClass;
 import org.apache.logging.log4j.Logger;
 import org.lwjgl.glfw.GLFWImage;
 import org.lwjgl.nanovg.NVGColor;
@@ -16,6 +17,7 @@ import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.IntBuffer;
 
+@UtilityClass
 public class Utils {
 
     /** 从 classpath 读取图像并解码为 GLFW 图标（窗口图标用） */
