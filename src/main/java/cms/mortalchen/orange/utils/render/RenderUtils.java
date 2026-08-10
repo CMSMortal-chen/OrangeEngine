@@ -75,6 +75,10 @@ public class RenderUtils {
         postProcessPipeline = pipeline;
     }
 
+    public static PostProcessPipeline getPostProcessPipeline() {
+        return postProcessPipeline;
+    }
+
     public static void setNanoVGFrameSize(int w, int h) {
         frameWidth = w;
         frameHeight = h;

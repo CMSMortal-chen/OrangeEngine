@@ -20,6 +20,8 @@ public class PostProcessPipeline {
     private static final String FULLSCREEN_VERT = "shaders/postprocess/fullscreen.vert";
     private static final String GAUSSIAN_BLUR_FRAG = "shaders/postprocess/gaussian_blur.frag";
     private static final String COMPOSITE_FRAG = "shaders/postprocess/composite.frag";
+    private static final String COPY_FRAG = "shaders/postprocess/copy.frag";
+    private static final String TRANSITION_FRAG = "shaders/postprocess/transition.frag";
 
     private int width = -1;
     private int height = -1;
@@ -28,9 +30,22 @@ public class PostProcessPipeline {
     private FrameBuffer brightBuffer;
     private FrameBuffer pingBuffer;
     private FrameBuffer pongBuffer;
+    /** 转场冻结帧：触发瞬间对 sceneBuffer 的一次性截取 */
+    private FrameBuffer savedOldBuffer;
 
     private int blurProgram;
     private int compositeProgram;
+    private int copyProgram;
+    private int transitionProgram;
+
+    // ---- 转场状态（由游戏侧 TransitionFx 驱动，渲染线程） ----
+    private boolean transitionActive;
+    private boolean captureOldPending;
+    private boolean transitionSupported = true;
+    private float transitionTime;
+    private float transitionIntensity;
+    private float transitionMix;
+    private float transitionAlpha;
 
     private int quadVao;
     private int quadVbo;
@@ -55,6 +70,15 @@ public class PostProcessPipeline {
         createQuad();
         blurProgram = createProgram(FULLSCREEN_VERT, GAUSSIAN_BLUR_FRAG);
         compositeProgram = createProgram(FULLSCREEN_VERT, COMPOSITE_FRAG);
+        copyProgram = createProgram(FULLSCREEN_VERT, COPY_FRAG);
+        try {
+            transitionProgram = createProgram(FULLSCREEN_VERT, TRANSITION_FRAG);
+        } catch (RuntimeException e) {
+            // 转场 shader 编译失败不致命：回退到游戏侧黑场转场
+            System.err.println("[PostProcess] transition.frag 编译失败，转场回退黑场: " + e.getMessage());
+            transitionProgram = 0;
+        }
+        transitionSupported = transitionProgram != 0;
         initialized = true;
     }
 
@@ -96,6 +120,16 @@ public class PostProcessPipeline {
 
     public void compositeToScreen() {
         if (!initialized || sceneBuffer == null) {
+            return;
+        }
+
+        // 转场模式：先截取一次 sceneBuffer，再逐帧把冻结旧帧过故障 shader、交叉淡入实时新场景
+        if (transitionActive && transitionProgram != 0 && savedOldBuffer != null) {
+            if (captureOldPending) {
+                copyTexture(sceneBuffer.colorTextureId, savedOldBuffer);
+                captureOldPending = false;
+            }
+            drawTransition();
             return;
         }
 
@@ -152,10 +186,12 @@ public class PostProcessPipeline {
         destroyFrameBuffer(brightBuffer);
         destroyFrameBuffer(pingBuffer);
         destroyFrameBuffer(pongBuffer);
+        destroyFrameBuffer(savedOldBuffer);
         sceneBuffer = null;
         brightBuffer = null;
         pingBuffer = null;
         pongBuffer = null;
+        savedOldBuffer = null;
 
         if (blurProgram != 0) {
             glDeleteProgram(blurProgram);
@@ -164,6 +200,14 @@ public class PostProcessPipeline {
         if (compositeProgram != 0) {
             glDeleteProgram(compositeProgram);
             compositeProgram = 0;
+        }
+        if (copyProgram != 0) {
+            glDeleteProgram(copyProgram);
+            copyProgram = 0;
+        }
+        if (transitionProgram != 0) {
+            glDeleteProgram(transitionProgram);
+            transitionProgram = 0;
         }
         if (quadVbo != 0) {
             glDeleteBuffers(quadVbo);
@@ -279,11 +323,13 @@ public class PostProcessPipeline {
         destroyFrameBuffer(brightBuffer);
         destroyFrameBuffer(pingBuffer);
         destroyFrameBuffer(pongBuffer);
+        destroyFrameBuffer(savedOldBuffer);
 
         sceneBuffer = createFrameBuffer(width, height, true);
         brightBuffer = createFrameBuffer(width, height, false);
         pingBuffer = createFrameBuffer(width, height, false);
         pongBuffer = createFrameBuffer(width, height, false);
+        savedOldBuffer = createFrameBuffer(width, height, false);
     }
 
     private FrameBuffer createFrameBuffer(int w, int h, boolean withDepthStencil) {
@@ -398,7 +444,6 @@ public class PostProcessPipeline {
         int shader = glCreateShader(type);
         glShaderSource(shader, source);
         glCompileShader(shader);
-
         if (glGetShaderi(shader, GL_COMPILE_STATUS) == GL_FALSE) {
             String info = glGetShaderInfoLog(shader);
             glDeleteShader(shader);
@@ -416,6 +461,93 @@ public class PostProcessPipeline {
             return new String(bytes, StandardCharsets.UTF_8);
         } catch (IOException e) {
             throw new IllegalStateException("Failed to read shader resource: " + path, e);
+        }
+    }
+
+    // ================= 转场（冻结帧 + 故障 shader） =================
+
+    /** 当前场景纹理（sceneBuffer 颜色附件；转场/后处理采样用） */
+    public int getSceneTexture() {
+        return sceneBuffer == null ? 0 : sceneBuffer.colorTextureId;
+    }
+
+    /** 故障转场 shader 是否可用（编译失败则游戏侧回退黑场转场） */
+    public boolean isTransitionSupported() {
+        return initialized && transitionSupported;
+    }
+
+    /** 开始转场：首个 composite 帧把 sceneBuffer 一次性截取到 savedOldBuffer */
+    public void beginTransition() {
+        transitionActive = true;
+        captureOldPending = true;
+    }
+
+    /** 每帧参数：时间/故障强度(0=原图)/旧→新交叉进度(0..1)/FBO 遮罩(0=实时,1=转场) */
+    public void setTransitionParams(float time, float intensity, float mix, float alpha) {
+        transitionTime = time;
+        transitionIntensity = intensity;
+        transitionMix = mix;
+        transitionAlpha = alpha;
+    }
+
+    /** 结束转场：恢复普通合成 */
+    public void endTransition() {
+        transitionActive = false;
+        captureOldPending = false;
+    }
+
+    /** 把 source 纹理整体拷贝到 target framebuffer（冻结旧帧的一次性截取） */
+    private void copyTexture(int source, FrameBuffer target) {
+        glBindFramebuffer(GL_FRAMEBUFFER, target.fboId);
+        glViewport(0, 0, width, height);
+        glClearColor(0f, 0f, 0f, 0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glUseProgram(copyProgram);
+        bindTexture(0, source);
+        setUniform1i(copyProgram, "uScene", 0);
+        renderQuad();
+        glUseProgram(0);
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    }
+
+    /** 冻结旧帧过故障 shader，与实时新场景交叉淡入（blend 关闭，alpha 由 shader 内处理） */
+    private void drawTransition() {
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glViewport(0, 0, width, height);
+        glDisable(GL_DEPTH_TEST);
+        glDisable(GL_BLEND);
+
+        glUseProgram(transitionProgram);
+        bindTexture(0, savedOldBuffer.colorTextureId);
+        bindTexture(1, sceneBuffer.colorTextureId);
+        setUniform1i(transitionProgram, "uOld", 0);
+        setUniform1i(transitionProgram, "uNew", 1);
+        setUniform1f(transitionProgram, "uTime", transitionTime);
+        setUniform1f(transitionProgram, "uIntensity", transitionIntensity);
+        setUniform1f(transitionProgram, "uMix", transitionMix);
+        setUniform1f(transitionProgram, "uAlpha", transitionAlpha);
+        renderQuad();
+        glUseProgram(0);
+    }
+
+    private static void setUniform1i(int program, String name, int value) {
+        int loc = glGetUniformLocation(program, name);
+        if (loc >= 0) {
+            glUniform1i(loc, value);
+        }
+    }
+
+    private static void setUniform1f(int program, String name, float value) {
+        int loc = glGetUniformLocation(program, name);
+        if (loc >= 0) {
+            glUniform1f(loc, value);
+        }
+    }
+
+    private static void setUniform2f(int program, String name, float x, float y) {
+        int loc = glGetUniformLocation(program, name);
+        if (loc >= 0) {
+            glUniform2f(loc, x, y);
         }
     }
 
